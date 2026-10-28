@@ -1,0 +1,266 @@
+/* LumaCarve Optical Glass visual system — reference-inspired, CSS-only background */
+:root{--glass-blur:28px;--glass-alpha:.66;--accent-primary:#6366f1;--accent-secondary:#38bdf8}
+html,body,#root{min-height:100%;background:#f4f6fb}
+body{color:#16233b}
+.optical-theme{font-family:Inter,"Microsoft YaHei",system-ui,sans-serif;color:#172338;min-height:100vh;position:relative;isolation:isolate;background:transparent}
+.optical-theme .ambient-stage{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:-1;background:radial-gradient(circle at 18% 18%,#fff,transparent 56%),linear-gradient(135deg,#f8fafc,#edf3fc 55%,#f9f7ff)}
+.optical-theme .aura-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;pointer-events:none}
+.optical-theme .blob-one{width:34rem;height:34rem;left:-12rem;top:-9rem;background:radial-gradient(circle,#afbaff,#e8eaff 60%,transparent)}
+.optical-theme .blob-two{width:40rem;height:40rem;right:-13rem;top:17%;background:radial-gradient(circle,#98dffa,#eefaff 65%,transparent)}
+.optical-theme .blob-three{width:36rem;height:36rem;left:30%;bottom:-20rem;background:radial-gradient(circle,#e2bfff,#fbe8ff 60%,transparent)}
+.optical-theme .nav-rail{background:#ffffff7c;backdrop-filter:blur(28px) saturate(180%);border-right:1px solid #fff;padding-top:20px;box-shadow:5px 0 20px #263c6010}
+.optical-theme .nav-divider{background:#dce5f2}
+.optical-theme .nav-icon{color:#6d7c98}
+.optical-theme .nav-icon:hover{background:#ffffffd8;color:#4f46e5}
+.optical-theme .nav-icon.active{color:#fff;background:linear-gradient(125deg,#7178f8,#5353e2);box-shadow:0 8px 24px #6366f155;border-color:#ffffff80}
+.optical-theme .topbar{background:#ffffff8a;backdrop-filter:blur(28px) saturate(190%);border-bottom:1px solid white;box-shadow:0 6px 35px #15284b0b}
+.optical-theme .breadcrumb{color:#75849b}
+.optical-theme .breadcrumb b{color:#29374e}
+.optical-theme .topbar-version{border-color:#e2e7f2;background:#ffffffad;color:#716da9}
+.optical-theme .global-search{background:#ffffff99;border-color:#e2e9f4;color:#66748d}
+.optical-theme .global-search input{color:#26354e}
+.optical-theme .global-search input::placeholder{color:#8996a9}
+.optical-theme .global-search kbd{color:#66758a;border-color:#d5ddea}
+.optical-theme .icon-button{color:#6f7c91}
+.optical-theme .avatar{background:linear-gradient(135deg,#b2b9ff,#ddbcf3);color:#504a92}
+.optical-theme .main-scroll{background:transparent}
+.optical-theme .content-inner{padding:24px 28px 34px;max-width:1700px}
+.optical-theme .app-footer{color:#7b8ba4;border-top:1px solid #ffffffad}
+.optical-theme .status-chip{background:#ffffffb5;border-color:#fff;color:#64748b}
+.optical-theme .eyebrow{color:#7b8aa5}
+.optical-theme .eyebrow-mark{background:#6366f1}
+.optical-theme h1,.optical-theme h2,.optical-theme h3{color:#17243a}
+.optical-theme .page-heading p{color:#7d8aa1}
+.optical-theme .heading-accent{color:#8994ac}
+.optical-theme .btn,.optical-theme .icon-button,.optical-theme .inspector-icon-btn{transition:background .18s,box-shadow .18s,transform .18s}
+.optical-theme .btn-ghost{color:#47556d;background:#ffffffad;border-color:#fff;box-shadow:0 4px 14px #263e6411}
+.optical-theme .btn-primary{background:linear-gradient(115deg,#6366f1,#8184fa);border-color:#b8baff;box-shadow:0 6px 22px #6366f133;color:#fff}
+.optical-theme .btn:hover,.optical-theme .op-glass-pill:hover{transform:translateY(-1px)}
+.optical-theme .panel,.optical-theme .inspector,.optical-theme .task-list-pane,.optical-theme .task-main-pane,.optical-theme .dataset-sidebar,.optical-theme .dataset-content,.optical-theme .metric-card{background:rgba(255,255,255,.72);backdrop-filter:blur(28px) saturate(190%);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 36px #2139580d,inset 0 1px #fff;border-radius:16px}
+.optical-theme .panel-title h2,.optical-theme .metric-card strong{color:#1e2b42}
+.optical-theme .panel-title h2 svg{color:#6366f1}
+.optical-theme .metric-card small,.optical-theme .metric-top,.optical-theme .soft-label,.optical-theme .pane-header,.optical-theme .pane-foot,.optical-theme .section-mini-label,.optical-theme .inspector-bottom{color:#8290a5}
+.optical-theme .dashboard-task,.optical-theme .history-row{border-color:#e6ecf6}
+.optical-theme .dashboard-task b,.optical-theme .history-row b{color:#25344e}
+.optical-theme .dashboard-task small,.optical-theme .history-row small{color:#7f8da6}
+.optical-theme .form-label,.optical-theme .data-row span,.optical-theme .dataset-heading p{color:#6c7b93}
+.optical-theme .form-label input,.optical-theme .form-label select,.optical-theme .form-label textarea,.optical-theme .caption-editor{color:#34425b;background:#f8fbffb5;border-color:#dde6f4}
+.optical-theme .form-label select option{background:#fff}
+.optical-theme .feature-row,.optical-theme .panel-divider,.optical-theme .inspector-section,.optical-theme .inspector-bottom{border-color:#e7edf7}
+.optical-theme .feature-row b,.optical-theme .data-row b,.optical-theme .filename{color:#243650}
+.optical-theme .feature-row span,.optical-theme .muted{color:#7b8da4}
+.optical-theme .tabs{border-color:#dfe8f4}
+.optical-theme .tabs button{color:#8390a6}
+.optical-theme .tabs button.selected{color:#4f46e5;border-color:#6366f1}
+.optical-theme .count-pill,.optical-theme .pane-count{background:#e9edff;color:#6568c4}
+.optical-theme .surface-toolbar{background:#ffffffa8;border-color:#fff}
+.optical-theme .toolbar-label,.optical-theme .filter-toggle,.optical-theme .select-wrapper,.optical-theme .select-wrapper select{color:#65758e}
+.optical-theme .toolbar-sep{background:#e2eaf5}
+.optical-theme .filter-toggle.is-active,.optical-theme .filter-toggle:hover{background:#eef0ff;color:#585ace}
+.optical-theme .select-wrapper,.optical-theme .view-toggle{border-color:#e0e8f4}
+.optical-theme .select-wrapper option{background:#fff}
+.optical-theme .view-toggle button.active{background:#e8ebff;color:#6666ce}
+.optical-theme .art-tile,.optical-theme .dataset-image-tile{background:#ffffffb5;border-color:#fff;box-shadow:0 7px 19px #37405b14}
+.optical-theme .art-tile.selected,.optical-theme .dataset-image-tile.selected{border-color:#989cff;box-shadow:0 0 0 2px #6366f166,0 9px 25px #595bc51d}
+.optical-theme .tile-meta b,.optical-theme .dataset-tile-caption{color:#2e4058}
+.optical-theme .tile-meta span{color:#8190a7}
+.optical-theme .inspector-preview,.optical-theme .sample-inspector-preview{background:#e6edfa}
+.optical-theme .inspector-head h3{color:#223149}
+.optical-theme .inspector-icon-btn{color:#6e7f98;background:#f8fbff;border-color:#e5ebf6}
+.optical-theme .inspector-icon-btn:hover{background:#ecefff;color:#5658c9}
+.optical-theme .prompt-box{background:#f8faffb5;border-color:#e5eaf6;color:#57657d}
+.optical-theme .task-row-info b,.optical-theme .dataset-list-item b{color:#293851}
+.optical-theme .task-row.active,.optical-theme .dataset-list-item.active{background:#edf0ffc7;border-color:#bcc4ff}
+.optical-theme .task-row-info small,.optical-theme .dataset-list-item small{color:#7e8ba2}
+.optical-theme .task-progress{background:#e0e7f2}
+.optical-theme .task-main-pane,.optical-theme .dataset-content{background:#ffffffa8}
+.optical-theme .task-detail-head h2,.optical-theme .dataset-heading h2{color:#25344e}
+.optical-theme .epoch-frame{background:#f5f8ff;border-color:#dce5f3}
+.optical-theme .epoch-frame.selected{border-color:#777bff}
+.optical-theme .epoch-text{color:#5f7091}
+.optical-theme .sample-stage{background:radial-gradient(circle at center,#d9e9ff,#f9fbff 73%);border-color:#fff}
+.optical-theme .comparison-footer,.optical-theme .dataset-view-count{color:#798aa1}
+.optical-theme .caption-list-row{background:#f9fbffa8;border-color:#e0e6f1;color:#273851}
+.optical-theme .caption-list-row.active{border-color:#a1aaff}
+.optical-theme .caption-list-row p{color:#7d8ba1}
+.optical-theme .dataset-folder{background:#f1f1ff}
+.optical-theme .empty-state{background:#ffffff77;border-color:#d6e2f3;color:#8190aa}
+.optical-theme .empty-state strong{color:#2c3d58}
+.optical-theme .toast{background:#ffffffee;color:#283952;border-color:#dde5f7}
+.optical-theme .state-orb,.optical-theme .large-orb{background:#e8ebff;border-color:#dce4ff;color:#6366f1}
+.optical-theme .chart-box{background:linear-gradient(#f8fbff,#f1f6ff);border-color:#e1e9f6}
+.optical-theme .chart-empty{color:#8291a6}
+.optical-theme .monitor-stat-grid>div,.optical-theme .plugin-tags span,.optical-theme .model-icon{background:#edf0ff;color:#6466c1}
+.optical-theme .monitor-stat-grid small{color:#74829a}
+.optical-theme .model-card>span{color:#7c899c}
+.optical-theme .model-empty{border-color:#e1e8f4;color:#8390a4}
+.optical-theme .plugin-landing p{color:#78889f}
+
+/* Optical synthesis / training panel system */
+.optical-theme .op-page{font-family:Inter,"Microsoft YaHei",system-ui,sans-serif;color:#26354b}
+.optical-theme .op-workspace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px;padding:0 4px}
+.optical-theme .op-overline{font:600 10px "JetBrains Mono",ui-monospace,monospace;letter-spacing:.15em;color:#7c8da6}
+.optical-theme .op-workspace-head h1{font-weight:650;font-size:22px;letter-spacing:-.045em;margin-top:5px}
+.optical-theme .op-workspace-head h1 span{font-weight:400;color:#8192a9;font-size:.8em}
+.optical-theme .op-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.optical-theme .op-status{display:flex;align-items:center;gap:6px;font:600 10px "JetBrains Mono",monospace;color:#707db2;padding:8px 10px;border-radius:10px;background:#ffffffa1;border:1px solid white}
+.optical-theme .op-select-small{height:34px;display:flex;align-items:center;gap:5px;background:#ffffffb0;border:1px solid #fff;border-radius:10px;padding:0 8px;color:#626c99;box-shadow:0 3px 13px #172a5011}
+.optical-theme .op-select-small select{color:#49566d;background:none;border:0;appearance:none;font-size:11px;max-width:180px}
+.optical-theme .op-synth-grid{display:grid;grid-template-columns:minmax(225px,1fr) minmax(380px,2.06fr) minmax(225px,1fr);gap:14px;align-items:stretch}
+.optical-theme .op-column{display:flex;flex-direction:column;gap:14px;min-width:0}
+.optical-theme .op-glass-panel{background:rgba(255,255,255,var(--glass-alpha));border:1px solid rgba(255,255,255,.9);box-shadow:0 10px 36px -6px #0f172a0d,0 2px 7px #0f172a06,inset 0 1px 0 #fff;backdrop-filter:blur(var(--glass-blur)) saturate(190%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(190%);border-radius:19px;padding:15px;min-width:0}
+.optical-theme .op-glass-pill{border:1px solid #ffffffef;background:rgba(255,255,255,.7);backdrop-filter:blur(18px);border-radius:11px;color:#556178;box-shadow:0 4px 14px #1c355014,inset 0 1px #fff;transition:all .2s}
+.optical-theme .op-glass-pill.active{background:#fffffff0;border-color:#b9baff;box-shadow:0 4px 17px #6366f12a,inset 0 0 0 1px #6366f12b;color:#4f46e5}
+.optical-theme .op-panel-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:15px;color:#293750;font-size:12px;font-weight:650}
+.optical-theme .op-panel-title>div{display:flex;gap:8px;align-items:center}
+.optical-theme .op-panel-title svg{color:#6366f1}
+.optical-theme .op-tiny-tag{font:600 10px "JetBrains Mono",monospace;color:#5959c9;padding:5px 8px;border-radius:7px;border:1px solid #fff;background:#f8faffb5;white-space:nowrap}
+.optical-theme .op-readout{font:500 10px "JetBrains Mono",monospace;color:#7c8da3;white-space:nowrap}
+.optical-theme .op-indigo{color:#5858c8}
+.optical-theme .op-mini-note{font-size:10px;color:#91a0b4;line-height:1.5;margin-top:9px}
+.optical-theme .op-dotted{background-color:#f4f7fccc;background-image:radial-gradient(#a2afc755 1px,transparent 1px);background-size:20px 20px}
+.optical-theme .op-xy-pad{aspect-ratio:1;position:relative;touch-action:none;cursor:crosshair;border:1px solid #ffffffd9;border-radius:15px;overflow:hidden;box-shadow:inset 0 2px 7px #142e5010}
+.optical-theme .op-pad-aura{position:absolute;width:115px;height:115px;border-radius:50%;filter:blur(23px);opacity:.34}
+.optical-theme .op-pad-aura.a{top:-35px;left:-35px;background:#7881ff}
+.optical-theme .op-pad-aura.b{top:-35px;right:-35px;background:#67d6fc}
+.optical-theme .op-pad-aura.c{bottom:-35px;left:-35px;background:#e47cf3}
+.optical-theme .op-pad-aura.d{bottom:-35px;right:-35px;background:#61d9ac}
+.optical-theme .op-xy-lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.optical-theme .op-pad-node{position:absolute;display:flex;align-items:center;gap:4px;padding:4px 5px;border:1px solid white;border-radius:7px;background:#ffffffbd;box-shadow:0 2px 8px #33476718;font:600 10px "JetBrains Mono",monospace;pointer-events:none;color:#5968a1}
+.optical-theme .op-pad-node .artwork-img{width:25px;height:25px;border-radius:4px}
+.optical-theme .op-pad-node.node-0{top:9px;left:9px}.optical-theme .op-pad-node.node-1{top:9px;right:9px}.optical-theme .op-pad-node.node-2{bottom:9px;left:9px}.optical-theme .op-pad-node.node-3{bottom:9px;right:9px}
+.optical-theme .op-puck{width:34px;height:34px;border-radius:50%;position:absolute;transform:translate(-50%,-50%);border:2px solid white;background:#ffffffe8;box-shadow:0 3px 14px #6366f166;display:grid;place-items:center;pointer-events:none}
+.optical-theme .op-puck i{width:11px;height:11px;background:linear-gradient(135deg,#6366f1,#38bdf8);border-radius:50%}
+.optical-theme .op-lora-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.optical-theme .op-lora-card{display:flex;align-items:center;gap:7px;min-width:0;border:1px solid #fff;border-radius:10px;padding:6px;text-align:left;background:#ffffffb0;color:#32415c}
+.optical-theme .op-lora-card.selected{border-color:#959cff;background:#f3f2ff}
+.optical-theme .op-lora-card .artwork-img{width:32px;height:32px;border-radius:7px}
+.optical-theme .op-lora-card span{min-width:0;display:grid;gap:4px}.optical-theme .op-lora-card b{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.optical-theme .op-lora-card small{font:9px "JetBrains Mono",monospace;color:#7482a0}
+.optical-theme .op-ratio-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.optical-theme .op-ratio-option{min-height:63px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;padding:7px 3px}
+.optical-theme .op-ratio-option i{display:block;border:2px solid #8b9bb4;border-radius:3px;width:21px;height:auto;max-height:22px}
+.optical-theme .op-ratio-option.active i{border-color:#6366f1;background:#6366f11a}
+.optical-theme .op-ratio-option span{font:600 10px "JetBrains Mono",monospace}
+.optical-theme .op-viewport{flex:1;display:flex;flex-direction:column;border-radius:24px}
+.optical-theme .op-viewport-controls{display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.optical-theme .op-viewport-controls>div{display:flex;align-items:center;gap:5px}
+.optical-theme .op-tool{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 10px;white-space:nowrap;font-size:11px;font-weight:600}
+.optical-theme .op-icon{display:grid;place-items:center;width:30px;height:30px}
+.optical-theme .op-mono{font:10px "JetBrains Mono",monospace}
+.optical-theme .op-canvas-stage{min-height:415px;flex:1;display:grid;place-items:center;padding:24px;overflow:hidden;border-radius:16px}
+.optical-theme .op-canvas-frame{width:min(86%,410px);max-height:435px;position:relative;overflow:hidden;box-shadow:0 16px 34px #16264e30,0 0 0 1px #fff;border:3px solid #fff;border-radius:15px;touch-action:none;cursor:ew-resize;transition:transform .12s}
+.optical-theme .op-base-layer,.optical-theme .op-carved-layer,.optical-theme .op-relight-layer,.optical-theme .op-mesh-grid{position:absolute;inset:0}
+.optical-theme .op-base-layer .artwork-img{filter:grayscale(.5) blur(1.5px) brightness(1.08)}
+.optical-theme .op-mesh-grid{pointer-events:none;background-image:linear-gradient(#38bdf855 1px,transparent 1px),linear-gradient(90deg,#6366f155 1px,transparent 1px);background-size:23px 23px;opacity:.8}
+.optical-theme .op-relight-layer{pointer-events:none;mix-blend-mode:overlay}
+.optical-theme .op-compare-track{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 9px #6366f1;pointer-events:none}
+.optical-theme .op-drag-handle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fffd;border:1px solid #fff;box-shadow:0 2px 8px #5261a05c;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#6366f1}
+.optical-theme .op-split-tag{position:absolute;top:9px;font:600 9px "JetBrains Mono",monospace;background:#ffffffc4;padding:3px 5px;border-radius:4px;color:#595db9}
+.optical-theme .op-split-tag.left{right:8px}.optical-theme .op-split-tag.right{left:8px}
+.optical-theme .op-canvas-watermark{position:absolute;bottom:8px;right:9px;font:600 9px "JetBrains Mono",monospace;color:#fff;background:#101a4096;padding:3px 5px;border-radius:4px}
+.optical-theme .op-filmstrip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin-top:11px}
+.optical-theme .op-film-tile{border:2px solid #fff;background:white;padding:0;aspect-ratio:1.45;overflow:hidden;border-radius:8px}
+.optical-theme .op-film-tile.active{border-color:#6366f1;box-shadow:0 0 0 2px #6366f133}
+.optical-theme .op-prompt-panel{padding:12px}
+.optical-theme .op-chip-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:7px}
+.optical-theme .op-token-chip{padding:7px 8px;display:flex;align-items:center;gap:6px;font-size:10px;white-space:nowrap;color:#697498}
+.optical-theme .op-prompt-row{display:flex;gap:9px;align-items:center;background:#f8faffb5;border:1px solid #fff;padding:8px 8px 8px 13px;border-radius:12px;color:#6366f1}
+.optical-theme .op-prompt-row input{min-width:0;flex:1;border:0;background:none;outline:none;font-size:12px;color:#2e3e59}
+.optical-theme .op-render-button{border:0;border-radius:11px;background:linear-gradient(110deg,#18223b,#38356f,#18223b);color:#fff;box-shadow:0 6px 15px #28335429;display:flex;align-items:center;gap:8px;padding:11px 17px;font-size:11px;font-weight:650;white-space:nowrap}
+.optical-theme .op-render-button svg{color:#8de4ff}
+.optical-theme .op-sampler-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.optical-theme .op-sampler{padding:10px;text-align:left;min-width:0}
+.optical-theme .op-sampler svg{display:block;width:100%;height:33px}
+.optical-theme .op-sampler span{display:flex;justify-content:space-between;align-items:center;font:600 10px "JetBrains Mono",monospace}
+.optical-theme .op-sampler span i{display:block;width:7px;height:7px;border-radius:50%}
+.optical-theme .op-dials-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.optical-theme .op-dial{background:#ffffff92;border:1px solid #fff;border-radius:13px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:7px}
+.optical-theme .op-dial-ring{width:100px;height:100px;position:relative}
+.optical-theme .op-dial-ring svg{width:100%;height:100%}
+.optical-theme .op-ring-value{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px}
+.optical-theme .op-ring-value strong{font:600 18px "JetBrains Mono",monospace;color:#263653}
+.optical-theme .op-ring-value small{font:9px "JetBrains Mono",monospace;letter-spacing:.08em;color:#8490a8}
+.optical-theme .op-slider{width:100%;accent-color:#6366f1;cursor:pointer}
+.optical-theme .op-light-panel{flex:1}
+.optical-theme .op-light-body{display:flex;align-items:center;gap:14px}
+.optical-theme .op-light-orb{width:125px;height:125px;flex:0 0 125px;border-radius:50%;position:relative;border:1px solid #fff;box-shadow:inset 0 2px 10px #273c6a24,0 9px 20px #2b3f6514;cursor:crosshair;touch-action:none}
+.optical-theme .op-light-dot{position:absolute;width:17px;height:17px;transform:translate(-50%,-50%);border:2px solid #8185ef;background:#fff;border-radius:50%;box-shadow:0 0 15px #6366f177}
+.optical-theme .op-light-sliders{flex:1;min-width:0;display:flex;flex-direction:column;gap:15px}
+.optical-theme .op-light-sliders label{font:11px "JetBrains Mono",monospace;color:#66758c}
+.optical-theme .op-light-sliders label span{float:right}
+.optical-theme .op-light-sliders input{display:block;margin-top:7px}
+.optical-theme .op-side-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;font:10px "JetBrains Mono",monospace;color:#8998af;padding:4px}
+.optical-theme .op-side-footer>span{margin-left:auto;color:#6366f1}
+
+/* Carve */
+.optical-theme .op-train-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch}
+.optical-theme .op-train-grid>.op-glass-panel{min-height:550px;display:flex;flex-direction:column}
+.optical-theme .op-field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
+.optical-theme .op-field-row label,.optical-theme .op-train-controls label{display:grid;gap:6px;font-size:10px;color:#7a889d}
+.optical-theme .op-field-row select,.optical-theme .op-train-controls select,.optical-theme .op-train-controls input{width:100%;min-width:0;background:#ffffffc4;border:1px solid #fff;border-radius:8px;padding:9px 8px;color:#40506b;font:11px Inter,sans-serif}
+.optical-theme .op-dataset-matrix{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:6px 0 15px}
+.optical-theme .op-dataset-cell{position:relative;padding:0;border:3px solid #fff;border-radius:10px;overflow:hidden;background:white;aspect-ratio:1}
+.optical-theme .op-dataset-cell.active{border-color:#6366f1;box-shadow:0 0 0 2px #6366f133}
+.optical-theme .op-dataset-cell span{position:absolute;right:5px;bottom:5px;font:9px monospace;background:#fffbd;padding:4px;border-radius:4px}
+.optical-theme .op-bucket-bar{background:#ffffffac;border:1px solid #fff;border-radius:12px;padding:12px;margin-top:auto}
+.optical-theme .op-bucket-bar>div:first-child{display:flex;justify-content:space-between;gap:8px;font:10px "JetBrains Mono",monospace;color:#718199}
+.optical-theme .op-bucket-bar b{font-weight:500;color:#909fb4}
+.optical-theme .op-bucket-track{height:12px;border-radius:10px;background:#e0e8f6;display:flex;gap:2px;overflow:hidden;margin:10px 0}
+.optical-theme .op-bucket-track i:nth-child(1){background:#6366f1}.optical-theme .op-bucket-track i:nth-child(2){background:#38bdf8}.optical-theme .op-bucket-track i:nth-child(3){background:#af8cf9}
+.optical-theme .op-bucket-legend{display:flex;justify-content:space-between;gap:5px;font:9px "JetBrains Mono",monospace;color:#8796ad}
+.optical-theme .op-dataset-caption{display:flex;align-items:center;gap:7px;color:#6f80a0;font-size:11px;margin-top:12px}
+.optical-theme .op-topology-frame{flex:1;min-height:235px;display:grid;place-items:center;border-radius:13px;border:1px solid #fff}
+.optical-theme .op-topology{width:100%;height:auto;max-width:400px}
+.optical-theme .op-option-group{display:flex;align-items:center;gap:12px;margin-top:13px}
+.optical-theme .op-option-group>span{flex:0 0 69px;font:10px "JetBrains Mono",monospace;color:#667794}
+.optical-theme .op-option-group>div{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.optical-theme .op-option-group button{padding:9px 2px;font:11px "JetBrains Mono",monospace}
+.optical-theme .op-train-controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:15px}
+.optical-theme .op-cache-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:14px;color:#7688a4}
+.optical-theme .op-cache-row button{display:flex;align-items:center;gap:4px;font-size:10px;padding:7px}
+.optical-theme .op-cache-row>span{display:flex;align-items:center;gap:4px;font-size:10px}
+.optical-theme .op-chart-frame{border:1px solid #fff;background:#f6f9ffab;border-radius:13px;padding:12px}
+.optical-theme .op-loss-curve{width:100%;height:170px}
+.optical-theme .op-chart-labels{display:flex;justify-content:space-between;font:10px "JetBrains Mono",monospace;color:#8590a8}
+.optical-theme .op-metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}
+.optical-theme .op-metrics-row>div{background:#ffffff8c;border:1px solid white;border-radius:9px;padding:10px;display:grid;gap:6px}
+.optical-theme .op-metrics-row small{font:9px "JetBrains Mono",monospace;color:#8b98ad}
+.optical-theme .op-metrics-row strong{font-size:16px;color:#50618a}
+.optical-theme .op-train-epoch-head{display:flex;justify-content:space-between;align-items:center;font:10px "JetBrains Mono",monospace;color:#66758e;margin:6px 0 10px}
+.optical-theme .op-train-epoch-head button,.optical-theme .op-train-epoch-view button{border:0;background:none;color:#6366f1;display:inline-flex;gap:5px;align-items:center;font-size:10px}
+.optical-theme .op-train-epoch-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.optical-theme .op-train-epoch-grid button{background:#fff;padding:3px;border:1px solid white;border-radius:8px;overflow:hidden;min-width:0}
+.optical-theme .op-train-epoch-grid button.active{border-color:#6366f1;box-shadow:0 0 0 1px #6366f1}
+.optical-theme .op-train-epoch-grid .artwork-img{aspect-ratio:1}
+.optical-theme .op-train-epoch-grid span{font:8px "JetBrains Mono",monospace;color:#6d7c94}
+.optical-theme .op-train-epoch-view{display:flex;gap:10px;align-items:center;margin-top:12px;background:#ffffffad;border:1px solid #fff;border-radius:12px;padding:9px}
+.optical-theme .op-train-epoch-view .artwork-img{width:65px;height:65px;border-radius:8px}
+.optical-theme .op-train-epoch-view>div{display:grid;gap:6px}
+.optical-theme .op-train-epoch-view b{font:12px "JetBrains Mono",monospace;color:#40506c}
+.optical-theme .op-train-epoch-view small{font-size:10px;color:#8999ac}
+.optical-theme .op-caption-strip{display:flex;align-items:center;gap:8px;color:#8190a7;font:10px "JetBrains Mono",monospace;margin-top:14px}
+
+/* Flow */
+.optical-theme .op-stage-panel{padding:22px}
+.optical-theme .op-section-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:17px}
+.optical-theme .op-section-heading h2{font-size:19px;margin-top:5px}
+.optical-theme .op-flow-canvas{position:relative;border-radius:15px;min-height:410px;display:flex;align-items:center;overflow-x:auto;border:1px solid #fff}
+.optical-theme .op-flow-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.optical-theme .op-flow-stream{animation:op-flow 1.1s linear infinite}
+@keyframes op-flow{to{stroke-dashoffset:-34}}
+.optical-theme .op-flow-nodes{min-width:1050px;display:grid;grid-template-columns:repeat(5,1fr);gap:20px;padding:25px 25px;width:100%;z-index:1}
+.optical-theme .op-flow-node{text-align:left;padding:15px;min-height:142px;display:flex;flex-direction:column;justify-content:space-between;gap:11px}
+.optical-theme .op-flow-node.active{border-color:#afb9ff;box-shadow:0 0 0 2px #6366f126,0 10px 30px #333b841a}
+.optical-theme .op-flow-node-title{display:flex;justify-content:space-between;gap:6px;font:9px "JetBrains Mono",monospace}
+.optical-theme .op-flow-node-title .indigo{color:#6366f1}.optical-theme .op-flow-node-title .sky{color:#0ea5e9}.optical-theme .op-flow-node-title .violet{color:#8b5cf6}.optical-theme .op-flow-node-title .mint{color:#10b981}.optical-theme .op-flow-node-title .pink{color:#d946ef}
+.optical-theme .op-flow-node-icon{width:48px;height:48px;border-radius:12px;background:#eaf0ff;display:grid;place-items:center;color:#6366f1}
+.optical-theme .op-flow-node>b{font:11px "JetBrains Mono",monospace;color:#4c5e7b}
+.optical-theme .op-flow-detail{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:18px;color:#718199;font-size:11px}
+.optical-theme .op-flow-detail>div{display:grid;gap:5px}
+.optical-theme .op-flow-detail>div span{font:9px "JetBrains Mono",monospace;color:#8d9bb1}
+.optical-theme .op-flow-detail>div b{font-size:13px;color:#485875}
+
+@media(max-width:1380px){.optical-theme .op-synth-grid{grid-template-columns:minmax(210px,1fr) minmax(340px,1.7fr)}.optical-theme .op-synth-grid>.op-right{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.optical-theme .op-side-footer{grid-column:1/-1}.optical-theme .op-train-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.optical-theme .op-train-grid .op-train-converge{grid-column:1/-1;min-height:0}.optical-theme .op-train-epoch-grid{grid-template-columns:repeat(8,1fr)}}
+@media(max-width:900px){.optical-theme .op-synth-grid{grid-template-columns:1fr}.optical-theme .op-synth-grid>.op-right{grid-column:auto;display:flex}.optical-theme .op-synth-grid>.op-left{display:grid;grid-template-columns:1fr 1fr}.optical-theme .op-canvas-stage{min-height:350px}.optical-theme .op-train-grid{grid-template-columns:1fr}.optical-theme .op-train-grid>.op-train-converge{grid-column:auto}.optical-theme .op-train-grid>.op-glass-panel{min-height:0}}
+@media(max-width:580px){.optical-theme .content-inner{padding:16px 12px 28px}.optical-theme .op-workspace-head{align-items:start;flex-direction:column}.optical-theme .op-synth-grid>.op-left{display:flex}.optical-theme .op-viewport-controls{flex-direction:column}.optical-theme .op-canvas-stage{min-height:310px;padding:13px}.optical-theme .op-canvas-frame{width:min(95%,330px)}.optical-theme .op-prompt-row{flex-wrap:wrap}.optical-theme .op-prompt-row input{flex-basis:calc(100% - 30px)}.optical-theme .op-render-button{width:100%;justify-content:center}.optical-theme .op-light-body{flex-wrap:wrap}.optical-theme .op-train-epoch-grid{grid-template-columns:repeat(4,1fr)}.optical-theme .op-flow-detail{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.optical-theme .op-flow-stream{animation:none}}
