@@ -1,4 +1,4 @@
-export type Page = 'dashboard' | 'training' | 'generate' | 'gallery' | 'datasets' | 'models' | 'plugins' | 'history' | 'settings';
+export type Page = 'dashboard' | 'training' | 'generate' | 'flow' | 'gallery' | 'datasets' | 'models' | 'plugins' | 'history' | 'settings';
 export type GalleryTab = 'artworks' | 'samples';
 export type TaskState = 'training' | 'completed' | 'paused';
 
