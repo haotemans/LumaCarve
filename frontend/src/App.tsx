@@ -32,7 +32,7 @@ export default function App() {
   const [page, setPage] = useState<Page>(parsePage);
   const [outputs, setOutputs] = useState<OutputImage[]>(initialOutputs);
   const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
-  const [focusedTask, setFocusedTask] = useState<string>('task-001');
+  const [focusedTask, setFocusedTask] = useState<string>('');
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
