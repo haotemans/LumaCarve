@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowRight, CalendarDays, Check, CheckSquare2,
@@ -30,6 +30,7 @@ export default function GalleryPage({ outputs, setOutputs, search, focusedTask, 
   const [taskId, setTaskId] = useState(focusedTask);
   const [sampleId, setSampleId] = useState(focusedTask + '-e1');
   const [compare, setCompare] = useState(false);
+  useEffect(() => { if (focusedTask) { setTaskId(focusedTask); setSampleId(focusedTask + '-e1'); setTab('samples'); } }, [focusedTask]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const artworks = useMemo(() => outputs
