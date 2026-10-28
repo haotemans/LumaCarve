@@ -3,11 +3,12 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, Bell, Command, Database, GalleryHorizontal, HardDrive, History,
-  House, Images, Layers3, Menu, Puzzle, Search, Settings2, Sparkles, WandSparkles, X,
+  House, Images, Layers3, Menu, Puzzle, Search, Settings2, Sparkles, WandSparkles, X, GitBranch,
 } from 'lucide-react';
 import { initialDatasets, initialOutputs, tasks } from './data/demo';
 import type { Dataset, Notice, OutputImage, Page } from './types';
 import { DashboardPage, GeneratePage, HistoryPage, ModelsPage, PluginsPage, SettingsPage, TrainingPage } from './pages/StudioPages';
+import { GeneratePage as OpticalGenerate, TrainingPage as OpticalTraining, FlowPage } from './pages/OpticalStudio';
 import GalleryPage from './pages/GalleryPage';
 import DatasetsPage from './pages/DatasetsPage';
 
@@ -15,6 +16,7 @@ const navigation: { id: Page; label: string; icon: LucideIcon }[] = [
   { id: 'dashboard', label: '监控仪表盘', icon: House },
   { id: 'training', label: 'LoRA 训练', icon: Activity },
   { id: 'generate', label: '文生图', icon: WandSparkles },
+  { id: 'flow', label: '图形流程', icon: GitBranch },
   { id: 'gallery', label: '出图管理', icon: Images },
   { id: 'datasets', label: '数据集管理', icon: Database },
   { id: 'models', label: '模型管理', icon: Layers3 },
@@ -25,7 +27,7 @@ const navigation: { id: Page; label: string; icon: LucideIcon }[] = [
 
 function parsePage(): Page {
   const current = window.location.hash.replace('#/', '').replace('#', '') as Page;
-  return navigation.some((item) => item.id === current) ? current : 'gallery';
+  return navigation.some((item) => item.id === current) ? current : 'generate';
 }
 
 export default function App() {
@@ -82,7 +84,7 @@ export default function App() {
   const common = { notify };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell optical-theme"><div className="ambient-stage" aria-hidden="true"><span className="aura-blob blob-one"/><span className="aura-blob blob-two"/><span className="aura-blob blob-three"/></div>
       <aside className={'nav-rail ' + (menuOpen ? 'nav-open' : '')} aria-label="主导航">
         <button className="brand-mark" type="button" onClick={() => navigate('dashboard')} title="LumaCarve · 琢影" aria-label="返回仪表盘">
           <svg viewBox="0 0 54 52" aria-hidden="true" width="39" height="39">
@@ -114,7 +116,7 @@ export default function App() {
           <div className="topbar-left">
             <button className="icon-button mobile-menu" aria-label="打开导航菜单" onClick={() => setMenuOpen(!menuOpen)}><Menu size={20}/></button>
             <div className="breadcrumb"><span>LUMACARVE</span><span className="breadcrumb-sep">/</span><b>{current.label}</b></div>
-            <span className="topbar-version">EARLY ACCESS · UI</span>
+            <span className="topbar-version">GLASS STUDIO · UI</span>
           </div>
           <div className="topbar-right">
             <label className="global-search">
@@ -130,8 +132,9 @@ export default function App() {
         <main className="main-scroll" id="main-content">
           <div className="content-inner">
             {page === 'dashboard' && <DashboardPage outputs={outputs} onNavigate={navigate} onNavigateTask={navigateTask} />}
-            {page === 'training' && <TrainingPage {...common} onNavigateTask={navigateTask} />}
-            {page === 'generate' && <GeneratePage {...common} />}
+            {page === 'training' && <OpticalTraining {...common} onNavigateTask={navigateTask} />}
+            {page === 'generate' && <OpticalGenerate {...common} />}
+            {page === 'flow' && <FlowPage {...common} />}
             {page === 'gallery' && <GalleryPage outputs={outputs} setOutputs={setOutputs} search={search} focusedTask={focusedTask} onNavigate={navigate} {...common} />}
             {page === 'datasets' && <DatasetsPage datasets={datasets} setDatasets={setDatasets} search={search} {...common} />}
             {page === 'models' && <ModelsPage />}
