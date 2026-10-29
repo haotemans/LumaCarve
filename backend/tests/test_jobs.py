@@ -43,6 +43,18 @@ class JobsTests(unittest.TestCase):
             finally:
                 queue.close()
 
+    def test_disabled_worker_leaves_persisted_queued_items_untouched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = JobStore(Path(tmp)/"queue.sqlite3")
+            pending = store.create(sample(), {})
+            queue = JobQueue(store, DisabledInference())
+            queue.start()
+            try:
+                time.sleep(0.15)
+                self.assertEqual(store.get(pending["id"])["state"], "queued")
+            finally:
+                queue.close()
+
     def test_restarts_fail_inflight_records(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"queue.sqlite3"

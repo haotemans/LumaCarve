@@ -9,7 +9,7 @@ HTTP API：
 - \`GET /api/v1/jobs\`、\`GET /api/v1/jobs/{id}\`：读取任务历史。
 - \`POST /api/v1/jobs/{id}/cancel\`：队列中任务直接取消，运行中请求协作取消。
 
-调度：单 worker 串行执行 GPU 图像任务；后续训练也必须与之共用 GPU 资源仲裁而不能单独抢显存。重启会把未完成的 \`running\` 标为 \`failed/server_restarted\`。\`queued\` 项留在持久化存储中；只有接入真正可用的模型适配器才会继续处理。任务日志不保存任何假图片。
+调度：单 worker 串行执行 GPU 图像任务；后续训练也必须与之共用 GPU 资源仲裁而不能单独抢显存。重启会把未完成的 \`running\` 标为 \`failed/server_restarted\`。\`queued\` 项留在持久化存储中；后台 worker 会检查 `adapter.ready`，只有接入真正可用的模型适配器才会继续处理；未连接时保留排队记录，不会误标记为失败。任务日志不保存任何假图片。
 
 取消：推理适配器需要定期检查 \`threading.Event\` 并在模型安全同步点停止，否则只是申请取消。该版本没有强行中断 CUDA 内核。
 

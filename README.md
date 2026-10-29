@@ -2,7 +2,7 @@
 
 **A modular, local-first studio for LoRA training and text-to-image creation.**
 
-> **Project status:** Frontend preview and a Python scheduling/residency policy foundation exist. Real PyTorch/CUDA training and inference, speedups and 8/16/24 GB support are not implemented or benchmarked yet.
+> **Project status:** Frontend preview and a local FastAPI backend (graph validation, model discovery, image assets, SQLite job ledger, scheduling foundation) exist. Actual PyTorch/CUDA inference and LoRA training are NOT wired up or benchmarked.
 
 LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与图像创作、编辑工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
 
@@ -87,6 +87,12 @@ python -m unittest discover -s tests -v
 ```
 
 **Not yet connected:** actual GPU weights/transfers, PyTorch model adapters, memory telemetry, asynchronous transfers, Graph editor-to-engine serialization, real LoRA inference/training and performance benchmarks. See [backend/README.md](backend/README.md).
+
+## Backend development and traceable commits
+
+The backend is developed in small modules, each with Python implementation, independent Markdown guide, and unittest tests. Start at **[backend/README.md](backend/README.md)** for the code ↔ docs ↔ test index and Windows startup commands.
+
+Completed in the initial backend phase: local FastAPI bootstrap, Graph schema and dependency validation, safe model-file indexing, bounded image asset storage, SQLite jobs, and budgeted model residency policy. Real image generation/editing and GPU training are **not** available yet and the job endpoint returns 503 without an inference adapter.
 
 ## Roadmap
 
