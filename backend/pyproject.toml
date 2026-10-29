@@ -16,7 +16,31 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Install core API only for backend unit tests or headless management.
 dev = ["httpx>=0.27,<1"]
+# Both inference and future training share the SAME project-root .venv.
+# The installer selects the correct PyTorch GPU wheel before installing extras.
+inference = [
+    "torch>=2.3",
+    "diffusers>=0.35",
+    "transformers>=4.50,<6",
+    "accelerate>=1.2",
+    "safetensors>=0.4",
+    "huggingface-hub>=0.30",
+    "sentencepiece>=0.2",
+    "protobuf>=4.25",
+]
+training = [
+    "peft>=0.14",
+    "datasets>=3",
+    "tensorboard>=2.17",
+]
+# Optional accelerator packages. Do NOT install these extras blindly;
+# FlashAttention builds require a matching CUDA/PyTorch toolchain.
+flash = ["flash-attn>=2.6"]
+sage = ["sageattention>=2"]
+attention-build = ["ninja>=1.11", "packaging>=23", "psutil>=5.9"]
+
 
 [tool.setuptools]
 packages = ["lumacarve_runtime", "lumacarve_server"]
