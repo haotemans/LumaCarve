@@ -178,7 +178,10 @@ class JobQueue:
         while not self._shutdown.is_set():
             self._wakeup.wait(timeout=0.25)
             self._wakeup.clear()
-            while not self._shutdown.is_set():
+            # Never consume persisted work until a real adapter is ready.
+            if not self.adapter.ready:
+                continue
+            while not self._shutdown.is_set() and self.adapter.ready:
                 task = self._next()
                 if task is None:
                     break
