@@ -9,6 +9,8 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import Settings
+from .model_downloads import ModelDownloadManager
+from .routers.downloads import router as downloads_router
 from .jobs import DisabledInference, JobQueue, JobStore
 from .routers.jobs import router as jobs_router
 from .routers.workflows import router as workflow_router
@@ -37,10 +39,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     api.state.settings = settings
+    api.state.model_downloads = ModelDownloadManager(settings)
     api.include_router(workflow_router)
     api.include_router(models_router)
     api.include_router(assets_router)
     api.include_router(jobs_router)
+    api.include_router(downloads_router)
 
     # CORS is not CSRF protection. Reject disallowed Origins even on simple
     # multipart POST requests, before routes read or persist any data.
