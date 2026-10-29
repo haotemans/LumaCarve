@@ -236,7 +236,6 @@ export default function ImageStudioPage({notify}:SharedProps){
   function pointerUp(){
     setDrawing(false);
     maskPosition.current=null;
-    setMaskStatus(v=>v+1);
   }
   function downloadMask(){
     const canvas=canvasRef.current;
