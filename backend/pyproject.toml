@@ -30,6 +30,8 @@ inference = [
     "sentencepiece>=0.2",
     "protobuf>=4.25",
 ]
+# Mainland-China model downloads use the lightweight ModelScope Hub client only.
+china = ["modelscope-hub>=0.1.8"]
 training = [
     "peft>=0.14",
     "datasets>=3",

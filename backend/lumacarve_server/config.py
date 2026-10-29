@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .download_sources import resolve_region
+
 DEFAULT_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 
 
@@ -19,8 +21,11 @@ class Settings:
     max_pending_jobs: int = 16
     inference_offload: str = "auto"  # auto | full | model_cpu
     allow_model_download: bool = False
+    download_region: str = "auto"   # auto | cn | global; no IP geolocation
 
     def __post_init__(self) -> None:
+        if self.download_region not in ("auto", "cn", "global"):
+            raise ValueError("Invalid download region")
         if self.max_asset_bytes < 1024 or self.max_image_pixels < 1024:
             raise ValueError("Asset limits must be positive")
         if self.max_pending_jobs < 1 or self.max_pending_jobs > 256:
@@ -41,7 +46,12 @@ class Settings:
             allowed_origins=tuple(x.strip().rstrip("/") for x in origins.split(",") if x.strip()) if origins is not None else DEFAULT_ORIGINS,
             inference_offload=os.environ.get("LUMACARVE_INFERENCE_OFFLOAD", "auto"),
             allow_model_download=os.environ.get("LUMACARVE_ALLOW_MODEL_DOWNLOAD", "0") == "1",
+            download_region=os.environ.get("LUMACARVE_DOWNLOAD_REGION", "auto"),
         )
+
+    @property
+    def resolved_download_region(self) -> str:
+        return resolve_region(self.download_region)
 
     @property
     def models_dir(self) -> Path:
@@ -62,6 +72,6 @@ class Settings:
     def ensure_dirs(self) -> None:
         for directory in (
             self.data_dir, self.models_dir, self.assets_dir, self.outputs_dir,
-            *(self.models_dir / kind for kind in ("dit", "te", "vae", "lora", "checkpoints")),
+            *(self.models_dir / kind for kind in ("dit", "te", "vae", "lora", "checkpoints", "bundles")),
         ):
             directory.mkdir(parents=True, exist_ok=True)

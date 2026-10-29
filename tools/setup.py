@@ -16,10 +16,14 @@ import venv
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Use the shared pure policy module before an editable install exists.
+
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 VENV = ROOT / ".venv"
 REPORT = ROOT / "LumaCarveData" / "dependency-install.json"
+sys.path.insert(0, str(BACKEND))
+from lumacarve_server.download_sources import pip_index_for_region, resolve_region, torch_wheel_index
 
 
 def venv_python(root: Path = VENV) -> Path:
@@ -31,8 +35,8 @@ def command(argv: list[str], *, check: bool = True) -> subprocess.CompletedProce
     return subprocess.run(argv, check=check)
 
 
-def torch_index(choice: str) -> str | None:
-    return None if choice == "default" else f"https://download.pytorch.org/whl/{choice}"
+def torch_index(choice: str, *, region: str = "global", source: str = "official") -> str | None:
+    return torch_wheel_index(choice, region=region, source=source)
 
 
 def plan_attention(requested: str, *, system: str, cuda_available: bool, toolkit: bool) -> tuple[list[str], str | None]:
@@ -52,16 +56,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="LumaCarve single-.venv dependency installer")
     parser.add_argument("--torch", choices=["default", "cpu", "cu126", "cu128", "cu130"], default="default",
                         help="PyTorch official wheel index; use appropriate CUDA wheel for your GPU/driver")
+    parser.add_argument("--region", choices=["auto", "cn", "global"], default="auto",
+                        help="Download region: auto detects OS language, cn uses mainland mirrors")
+    parser.add_argument("--torch-source", choices=["auto", "official", "cn"], default="auto",
+                        help="Torch CUDA wheels: regional PyTorch mirror or official")
     parser.add_argument("--attention", choices=["auto", "both", "flash-attn", "sageattention", "none"], default="auto")
     parser.add_argument("--profile", choices=["full", "api"], default="full")
     parser.add_argument("--strict-attention", action="store_true", help="Fail instead of SDPA fallback")
     parser.add_argument("--upgrade", action="store_true", help="Upgrade installed packages")
     args = parser.parse_args()
+    region = resolve_region(args.region)
+    pip_index = pip_index_for_region(region)
+    mirror_flags = ["--index-url", pip_index] if pip_index else []
     if not venv_python().is_file():
         venv.EnvBuilder(with_pip=True, clear=False).create(VENV)
     python = str(venv_python())
     pip = [python, "-m", "pip"]
-    command(pip + ["install", "--upgrade", "pip", "setuptools", "wheel"])
+    command(pip + ["install", "--upgrade", "pip", "setuptools", "wheel"] + mirror_flags)
 
     report: dict[str, object] = {
         "at": datetime.now(timezone.utc).isoformat(),
@@ -69,20 +80,34 @@ def main() -> int:
         "profile": args.profile,
         "torch_index": args.torch,
         "attention_requested": args.attention,
+        "region": region,
+        "python_index_url": pip_index or "https://pypi.org/simple/",
+        "model_provider": "modelscope" if region == "cn" else "huggingface",
+        "torch_wheel_url": torch_index(args.torch, region=region, source=args.torch_source) or "default PyPI index",
         "attention_installed": [],
         "fallback": None,
     }
     try:
         if args.profile == "full":
             cmd = pip + ["install"] + (["--upgrade"] if args.upgrade else []) + ["torch"]
-            index = torch_index(args.torch)
-            if index:
-                cmd += ["--index-url", index]
+            index = torch_index(args.torch, region=region, source=args.torch_source)
+            cmd += ["--index-url", index] if index else mirror_flags
             command(cmd)
-            # -e installs API and ML dependencies in the same project environment.
-            command(pip + ["install", "--upgrade-strategy", "only-if-needed", "-e", str(BACKEND) + "[inference,training,dev]"])
+            # For CUDA wheels, ensure the installed torch contains a CUDA runtime.
+            if args.torch.startswith("cu"):
+                check = subprocess.run(
+                    [python, "-c", "import torch; print(torch.version.cuda or '')"],
+                    capture_output=True, text=True, check=False,
+                )
+                if check.returncode != 0 or not check.stdout.strip():
+                    raise RuntimeError("CUDA PyTorch wheel required but CPU-only torch was installed")
+                report["torch_runtime_cuda"] = check.stdout.strip()
+            # -e uses the SAME venv; hub SDK is only installed for CN mode.
+            extras = "inference,training,dev,china" if region == "cn" else "inference,training,dev"
+            command(pip + ["install", "--upgrade-strategy", "only-if-needed", "-e", str(BACKEND) + f"[{extras}]"] + mirror_flags)
         else:
-            command(pip + ["install", "-e", str(BACKEND) + "[dev]"])
+            extras = "dev,china" if region == "cn" else "dev"
+            command(pip + ["install", "-e", str(BACKEND) + f"[{extras}]"] + mirror_flags)
         probe = subprocess.run(
             [python, "-c", "import torch; print(int(torch.cuda.is_available()))"],
             capture_output=True, text=True, check=False,
@@ -94,9 +119,9 @@ def main() -> int:
         packages, reason = plan_attention(args.attention, system=platform.system(),cuda_available=cuda,toolkit=toolkit)
         report["fallback"] = reason
         if args.profile == "full" and packages:
-            command(pip + ["install", "ninja", "packaging", "psutil"])
+            command(pip + ["install", "ninja", "packaging", "psutil"] + mirror_flags)
             for package in packages:
-                result = command(pip + ["install", "--no-build-isolation", package], check=False)
+                result = command(pip + ["install", "--no-build-isolation", package] + mirror_flags, check=False)
                 if result.returncode:
                     if args.strict_attention:
                         raise RuntimeError(f"{package} installation failed (strict attention mode)")
@@ -107,6 +132,8 @@ def main() -> int:
             if len(report["attention_installed"]) != len(packages) or reason:
                 raise RuntimeError(reason or "Attention installation incomplete")
         print("LumaCarve environment ready:", python)
+        print("Download region:", region, "| Python packages:", report["python_index_url"])
+        print("Model hub:", report["model_provider"], "| Torch index:", report["torch_wheel_url"])
         print("Attention:", report["attention_installed"] or "PyTorch SDPA")
         if report["fallback"]:
             print("Note:", report["fallback"])

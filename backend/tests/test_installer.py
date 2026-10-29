@@ -29,6 +29,13 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(packages,["flash-attn","sageattention"])
         self.assertIsNone(why)
 
+    def test_china_mirrors(self):
+        self.assertEqual(INSTALLER.resolve_region("cn"), "cn")
+        self.assertEqual(INSTALLER.torch_index("cu128", region="cn", source="auto"),
+                         "https://mirrors.cernet.edu.cn/pytorch/whl/cu128")
+        self.assertEqual(INSTALLER.torch_index("cu128", region="cn", source="official"),
+                         "https://download.pytorch.org/whl/cu128")
+
     def test_cpu_wheel_index(self):
         self.assertEqual(INSTALLER.torch_index("cu128"),"https://download.pytorch.org/whl/cu128")
         self.assertEqual(INSTALLER.torch_index("cpu"),"https://download.pytorch.org/whl/cpu")
