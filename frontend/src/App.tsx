@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity, Bell, Command, Database, GitBranch, HardDrive, History,
+  Bell, Command, Database, HardDrive, History,
   House, Images, Layers3, Menu, Puzzle, Search, Settings2, Sparkles,
   WandSparkles, X,
 } from 'lucide-react';
@@ -12,17 +12,17 @@ import {
   DashboardPage, HistoryPage, ModelsPage, PluginsPage, SettingsPage,
 } from './pages/StudioPages';
 import {
-  GeneratePage, TrainingPage, FlowPage,
+  TrainingPage,
 } from './pages/OpticalStudio';
+import ImageStudioPage from './pages/ImageStudioPage';
 import GalleryPage from './pages/GalleryPage';
 import DatasetsPage from './pages/DatasetsPage';
 
 type NavEntry = { id: Page; label: string; icon: LucideIcon; subtitle?: string };
 
 const primary: NavEntry[] = [
-  { id: 'generate', label: '文生图', subtitle: 'SYNTH', icon: WandSparkles },
+  { id: 'generate', label: '图像工作室', subtitle: 'CREATE & EDIT', icon: WandSparkles },
   { id: 'training', label: 'LoRA 训练', subtitle: 'CARVE', icon: Layers3 },
-  { id: 'flow', label: '流程图谱', subtitle: 'GRAPH', icon: GitBranch },
 ];
 
 const secondary: NavEntry[] = [
@@ -37,6 +37,7 @@ const secondary: NavEntry[] = [
 
 function pageFromHash(): Page {
   const name = window.location.hash.replace(/^#\/?/, '') as Page;
+  if (name === 'flow') return 'generate';
   return [...primary, ...secondary].some(item => item.id === name) ? name : 'generate';
 }
 
@@ -171,8 +172,7 @@ export default function App() {
         <main className="lc-main" id="main-content">
           {page === 'dashboard' && <DashboardPage outputs={outputs} onNavigate={navigate} onNavigateTask={navigateTask}/>}
           {page === 'training' && <TrainingPage {...common} onNavigateTask={navigateTask}/>}
-          {page === 'generate' && <GeneratePage {...common}/>}
-          {page === 'flow' && <FlowPage {...common}/>}
+          {page === 'generate' && <ImageStudioPage {...common}/>}
           {page === 'gallery' && <GalleryPage outputs={outputs} setOutputs={setOutputs} search={search} focusedTask={focusedTask} onNavigate={navigate} {...common}/>}
           {page === 'datasets' && <DatasetsPage datasets={datasets} setDatasets={setDatasets} search={search} {...common}/>}
           {page === 'models' && <ModelsPage/>}
@@ -184,7 +184,7 @@ export default function App() {
         <footer className="lc-footer">
           <span>LUMACARVE <span className="lc-foot-divider">/</span> 琢影</span>
           <span>{active.label} <span className="lc-foot-divider">·</span> LOCAL WORKSPACE</span>
-          <span>UI DEMO — 未连接训练/生图引擎</span>
+          <span>UI DEMO — 未连接生成 / 编辑 / 训练引擎</span>
         </footer>
       </div>
 
