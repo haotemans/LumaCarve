@@ -88,6 +88,16 @@ python -m unittest discover -s tests -v
 
 **Not yet connected:** actual GPU weights/transfers, PyTorch model adapters, memory telemetry, asynchronous transfers, Graph editor-to-engine serialization, real LoRA inference/training and performance benchmarks. See [backend/README.md](backend/README.md).
 
+## China / Global download routes
+
+Chinese users can install dependencies from regional PyPI + CUDA wheel mirrors and download full model snapshots from ModelScope. International mode uses official PyPI/PyTorch and Hugging Face. Both share the same root `.venv`. Explicitly choose `--region cn` to avoid ambiguous locale detection:
+
+```powershell
+py -3.11 tools/setup.py --region cn --torch cu128 --attention auto
+```
+
+Model download is opt-in; set `LUMACARVE_ALLOW_MODEL_DOWNLOAD=1` and `LUMACARVE_DOWNLOAD_REGION=cn` to use the local `/api/v1/downloads` endpoint. See [source selection](backend/docs/11-download-sources.md) and [ModelScope download guide](backend/docs/12-modelscope-downloads.md). Downloading a model does not mean inference adapters are ready.
+
 ## Unified Python environment and attention
 
 The Python backend, model loaders and training tools share one repository-root `.venv`. To install on Windows, run `py -3.11 tools/setup.py --torch cu128 --attention auto` from the root (choose a compatible official PyTorch wheel for your GPU). Linux with CUDA Toolkit may attempt both FlashAttention and SageAttention; unsupported builds fall back to PyTorch SDPA. Each installation writes a local dependency report. See [backend/docs/09-install.md](backend/docs/09-install.md) and [backend/docs/10-attention.md](backend/docs/10-attention.md). These are dependency and selection foundations—not proof of inference acceleration.

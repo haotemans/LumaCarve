@@ -6,7 +6,7 @@
 
 在仓库根目录执行：
 ```powershell
-py -3.11 tools/setup.py --torch cu128 --attention auto
+py -3.11 tools/setup.py --region cn --torch cu128 --attention auto
 .\.venv\Scripts\python.exe -m uvicorn lumacarve_server.app:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
@@ -32,3 +32,8 @@ python3.11 tools/setup.py --torch cu128 --attention both
 **注意：** 依赖安装成功≠图像生成已实现；模型加载器与实际 attention dispatch 仍需要逐模型验证。
 
 参考：[PyTorch 官方安装](https://pytorch.org/get-started/locally/)；[FlashAttention](https://github.com/Dao-AILab/flash-attention)；[SageAttention](https://github.com/thu-ml/SageAttention)。
+
+
+## 国内专用源
+
+`--region cn`：清华 TUNA PyPI、中国教育网 PyTorch CUDA wheel 镜像，以及 ModelScope 模型客户端下载组件；`--torch-source official` 仅对 PyTorch wheel 使用官方源。详情见 [11-download-sources.md](11-download-sources.md)、[12-modelscope-downloads.md](12-modelscope-downloads.md)。

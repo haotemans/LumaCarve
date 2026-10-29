@@ -6,6 +6,20 @@
 
 在仓库根目录执行 `py -3.11 tools/setup.py --torch cu128 --attention auto`，安装报告位于 `LumaCarveData/dependency-install.json`。在 Windows 默认保留 PyTorch SDPA，不强制编译 FlashAttention/SageAttention；Linux + CUDA Toolkit 可以尝试两个包。详细见 [08-dependencies.md](docs/08-dependencies.md)、[09-install.md](docs/09-install.md)、[10-attention.md](docs/10-attention.md)。
 
+## 中国大陆依赖与模型下载
+
+```powershell
+# 项目根目录：依赖使用清华 TUNA / CERNET PyTorch wheel 镜像
+py -3.11 tools/setup.py --region cn --torch cu128 --attention auto
+# 只有用户启用后才允许 API 下载模型（默认通过魔搭）
+$env:LUMACARVE_DOWNLOAD_REGION="cn"
+$env:LUMACARVE_ALLOW_MODEL_DOWNLOAD="1"
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
+```
+
+再从本地 API 文档调用 `GET /api/v1/downloads/catalog` 和 `POST /api/v1/downloads`。已配置 Qwen-Image-2.1 和 MOSS-Image-Base；其他模型先核实仓库后才进入目录。下载具体细节与限制见 [11-download-sources.md](docs/11-download-sources.md)、[12-modelscope-downloads.md](docs/12-modelscope-downloads.md)。
+
 ## 快速启动（Windows PowerShell）
 
 ```powershell
@@ -26,6 +40,8 @@ cd LumaCarve\backend
 | 图片上传与读取 | `lumacarve_server/assets.py` + `routers/assets.py` | [05-assets.md](docs/05-assets.md) | `test_assets.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
 | 一键环境安装 | `../tools/setup.py` + `pyproject.toml` | [08-dependencies.md](docs/08-dependencies.md), [09-install.md](docs/09-install.md) | `test_installer.py` |
+| 国内/国际下载源 | `lumacarve_server/download_sources.py` + `tools/setup.py` | [11-download-sources.md](docs/11-download-sources.md) | `test_installer.py` |
+| ModelScope 模型下载 | `lumacarve_server/model_downloads.py` + `routers/downloads.py` | [12-modelscope-downloads.md](docs/12-modelscope-downloads.md) | `test_downloads.py` |
 | Flash/Sage/SDPA 决策 | `lumacarve_runtime/attention.py` | [10-attention.md](docs/10-attention.md) | `test_attention.py` |
 | GPU/RAM/SSD 驻留策略 | `lumacarve_runtime/{graph,budget,residency,executor}.py` | [07-runtime.md](docs/07-runtime.md) | `test_runtime.py` |
 
@@ -47,6 +63,8 @@ GitHub Actions 在 `.github/workflows/backend-ci.yml` 中执行 Python 3.11 测�
 - `POST /api/v1/workflows/validate`：可用。校验前端 Graph JSON 结构、参数和类型。
 - `GET /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`POST /api/v1/jobs/{id}/cancel`：可用。持久化任务状态。
 - `POST /api/v1/jobs`：API 可调用，但未配置真实推理适配器时返回 503。
+- `GET /api/v1/downloads/catalog`：返回国内/国际模型仓库目录。
+- `POST /api/v1/downloads`、`GET /api/v1/downloads/{id}`：显式启用后下载 ModelScope/Hugging Face 模型，查询下载状态；不自动载入 GPU。
 
 ## 接下来
 
