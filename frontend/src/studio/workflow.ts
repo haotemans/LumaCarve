@@ -90,7 +90,7 @@ export function nodeTitle(kind: NodeKind): string {
 function makeNode(kind: NodeKind, id: string, x: number, y: number, modelId: string): StudioNode {
   const common = { id, kind, x, y };
   switch (kind) {
-    case 'model': return { ...common, params: { modelId }, exposed: [] };
+    case 'model': return { ...common, params: { modelId }, exposed: ['modelId'] };
     case 'prompt': return { ...common, params: { prompt: '', negativePrompt: '' }, exposed: ['prompt'] };
     case 'references': return { ...common, params: {}, exposed: ['images'] };
     case 'mask': return { ...common, params: {}, exposed: ['mask'] };

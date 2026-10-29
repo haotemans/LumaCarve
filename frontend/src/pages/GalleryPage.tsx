@@ -98,7 +98,7 @@ export default function GalleryPage({ outputs, setOutputs, search, focusedTask, 
         </div>
       </div>
       <div className="tabs tabs-main" role="tablist" aria-label="图库分类">
-        <button role="tab" aria-selected={tab === 'artworks'} className={tab === 'artworks' ? 'selected' : ''} onClick={() => setTab('artworks')}><Images size={16}/>文生图作品<span className="count-pill">{outputs.filter((x) => x.kind === 'generation').length}</span></button>
+        <button role="tab" aria-selected={tab === 'artworks'} className={tab === 'artworks' ? 'selected' : ''} onClick={() => setTab('artworks')}><Images size={16}/>生成与编辑作品<span className="count-pill">{outputs.filter((x) => x.kind === 'generation').length}</span></button>
         <button role="tab" aria-selected={tab === 'samples'} className={tab === 'samples' ? 'selected' : ''} onClick={() => setTab('samples')}><Clock3 size={16}/>训练采样<span className="count-pill">{tasks.length}</span></button>
       </div>
       {tab === 'artworks' ? (
@@ -143,7 +143,7 @@ export default function GalleryPage({ outputs, setOutputs, search, focusedTask, 
                   <button className="inspector-icon-btn" title="复制提示词" onClick={() => copy(selected.prompt || selected.name, '文本')}><Copy size={17}/></button>
                   <button className="inspector-icon-btn" title="收藏" onClick={() => toggleFavorite(selected)}><Heart size={17} fill={selected.favorite ? 'currentColor' : 'none'} color={selected.favorite ? '#ef7da5' : undefined}/></button>
                   <button className="inspector-icon-btn" title="下载图片" onClick={() => downloadImage(selected)}><ArrowDownToLine size={17}/></button>
-                  <button className="inspector-icon-btn" title="在文生图界面使用" onClick={() => { onNavigate('generate'); notify('演示模式：生成参数复制请使用右侧按钮'); }}><ArrowRight size={17}/></button>
+                  <button className="inspector-icon-btn" title="在图像工作室中使用" onClick={() => { onNavigate('generate'); notify('演示模式：生成参数复制请使用右侧按钮'); }}><ArrowRight size={17}/></button>
                 </div>
                 <div className="inspector-section"><div className="section-mini-label">FILE INFO</div><strong className="filename">{selected.name}</strong><p className="muted tiny">{selected.date} · {selected.size}</p></div>
                 <div className="inspector-section"><div className="section-mini-label">GENERATION</div><div className="data-row"><span>Model</span><b>{selected.model}</b></div><div className="data-row"><span>Seed</span><b className="mono">{selected.imported ? '—' : selected.seed}</b></div><div className="data-row"><span>Steps</span><b>{selected.steps || '—'}</b></div><div className="data-row"><span>Resolution</span><b>{selected.size}</b></div></div>

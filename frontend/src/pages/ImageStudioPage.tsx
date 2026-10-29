@@ -113,16 +113,13 @@ export default function ImageStudioPage({notify}:SharedProps){
   const [erase,setErase]=useState(false);
   const [maskDirty,setMaskDirty]=useState(false);
   const [drawing,setDrawing]=useState(false);
-  const [maskStatus,setMaskStatus]=useState(0);
   const [sampleIndex,setSampleIndex]=useState(0);
   const [compare,setCompare]=useState(false);
-  const [showOriginal,setShowOriginal]=useState(true);
   const pickerRef=useRef<HTMLInputElement>(null);
   const graphImportRef=useRef<HTMLInputElement>(null);
   const canvasRef=useRef<HTMLCanvasElement>(null);
   const imageUrls=useRef(new Set<string>());
   const maskPosition=useRef<{x:number;y:number}|null>(null);
-  const savedFileNames=useRef(new Set<string>());
 
   useEffect(()=>()=>{imageUrls.current.forEach(url=>URL.revokeObjectURL(url));imageUrls.current.clear();},[]);
 
@@ -145,7 +142,6 @@ export default function ImageStudioPage({notify}:SharedProps){
     setWorkflow(prev=>copyValues(prev,makeWorkflow(intent,getModelId(prev))));
     setSelectedNode('sampler');
     setMaskDirty(false);
-    setMaskStatus(0);
     setCompare(false);
   }
   function changeModel(id:string){
@@ -206,7 +202,6 @@ export default function ImageStudioPage({notify}:SharedProps){
     canvas?.getContext('2d')?.clearRect(0,0,canvas.width,canvas.height);
     maskPosition.current=null;
     setMaskDirty(false);
-    setMaskStatus(v=>v+1);
   }
   function canvasPos(event:ReactPointerEvent<HTMLCanvasElement>){
     const rect=event.currentTarget.getBoundingClientRect();
@@ -290,8 +285,8 @@ export default function ImageStudioPage({notify}:SharedProps){
   const previewRatio=activeRef?activeRef.width+' / '+activeRef.height:(String(getValue('aspect')||'1:1').replace(':',' / '));
   const previewSource=Boolean(activeRef);
   const showPrompt=showField('prompt');
-  const masked=workflow.intent==='inpaint'&&model.supportsMask;
-  const needsImage=workflow.intent!=='create';
+  const masked=showField('mask')&&model.supportsMask;
+  const needsImage=workflow.intent!=='create'||showField('images');
 
   return <div className="is-page page">
     <div className="is-toolbar">
@@ -323,7 +318,7 @@ export default function ImageStudioPage({notify}:SharedProps){
     {view==='parameters'?
     <div className="is-layout">
       <aside className="is-column is-input-column">
-        <section className="is-panel is-model-card">
+        {showField('modelId')&&<section className="is-panel is-model-card">
           <SmallLabel extra={<span className="is-mini-badge">{model.status}</span>}>基础模型</SmallLabel>
           <div className="is-model-selector">
             <span className="is-model-symbol"><Layers3 size={20}/></span>
@@ -334,7 +329,7 @@ export default function ImageStudioPage({notify}:SharedProps){
             <ChevronDown size={14}/>
           </div>
           <div className="is-model-capabilities">{model.intents.map(intent=><span key={intent}>{intent==='create'?'文字生成':intent==='reference'?'参考图编辑':'局部重绘'}</span>)}{model.supportsAlpha&&<span>透明图像</span>}</div>
-        </section>
+        </section>}
 
         {showField('images')&&<section className="is-panel is-sources">
           <SmallLabel extra={<span className="is-soft-tag">{references.length} / {model.maxReferences} 张</span>}>输入素材</SmallLabel>
@@ -343,7 +338,7 @@ export default function ImageStudioPage({notify}:SharedProps){
             <span><ImagePlus size={22}/></span><strong>添加参考图片</strong><small>PNG / JPG / WebP · 仅本地预览</small>
           </button>
           <div className="is-reference-list">{references.map((ref,i)=><div className={'is-reference-tile'+(activeRef?.id===ref.id?' selected':'')} key={ref.id}>
-            <button onClick={()=>{setSelectedRef(ref.id);setShowOriginal(true)}} aria-label={'查看参考图 '+(i+1)}><img src={ref.url} alt={ref.name}/><span>{String(i+1).padStart(2,'0')}</span></button>
+            <button onClick={()=>{setSelectedRef(ref.id)}} aria-label={'查看参考图 '+(i+1)}><img src={ref.url} alt={ref.name}/><span>{String(i+1).padStart(2,'0')}</span></button>
             <div className="is-reference-name"><strong title={ref.name}>{ref.name}</strong><small>{ref.width} × {ref.height}</small></div>
             <button className="is-quiet-icon" aria-label={'移除 '+ref.name} onClick={()=>removeReference(ref.id)}><X size={15}/></button>
           </div>)}</div>
@@ -384,6 +379,7 @@ export default function ImageStudioPage({notify}:SharedProps){
         {showPrompt&&<section className="is-panel is-prompt-panel">
           <div className="is-prompt-head"><div><Sparkles size={17}/><strong>{needsImage?'图像编辑指令':'画面描述'}</strong></div><span>从 Graph / 文本编码节点暴露</span></div>
           <textarea aria-label="创作指令" value={String(getValue('prompt')||'')} onChange={e=>updateField('prompt',e.target.value)} placeholder={needsImage?'描述要修改的内容，例如：保留人物身份，将衣服替换为第二张参考图中的外套，并保持背景一致':'描述想生成的画面、主体、光影、构图与风格……'} rows={3}/>
+          {showField('negativePrompt')&&<div className="is-negative-prompt"><label htmlFor="studio-negative">排除内容 · Negative prompt</label><textarea id="studio-negative" aria-label="排除内容" rows={2} value={String(getValue('negativePrompt')||'')} onChange={e=>updateField('negativePrompt',e.target.value)} placeholder="排除不想出现的元素（实际支持程度由模型适配器决定）"/></div>}
           <div className="is-prompt-footer"><span><CheckCircle2 size={14}/> 参数修改同步写入当前工作流</span><button className="is-generate-button" onClick={requestRun}><Zap size={16}/>{needsImage?'开始编辑':'开始生成'}<ArrowUpRight size={15}/></button></div>
         </section>}
         {!showPrompt&&<section className="is-panel is-prompt-disabled">工作流未暴露文本编码节点的 Prompt 参数。你可以在「节点工作流」视图中开放它。</section>}

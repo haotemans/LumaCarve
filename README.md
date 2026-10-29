@@ -4,7 +4,7 @@
 
 > **Project status:** Frontend preview and a Python scheduling/residency policy foundation exist. Real PyTorch/CUDA training and inference, speedups and 8/16/24 GB support are not implemented or benchmarked yet.
 
-LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与文生图创作工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
+LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与图像创作、编辑工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
 
 ## Planned model support
 
@@ -97,7 +97,7 @@ python -m unittest discover -s tests -v
 - [ ] 实现 Text Encoder 缓存、CPU 编码与预取
 - [ ] 实现 Diffusion Transformer LoRA 训练闭环
 - [ ] 实现训练监控及 Epoch 采样对比
-- [ ] 接入文生图工作流
+- [ ] 接入图像生成与编辑工作流
 - [ ] 在 8 GB / 16 GB / 24 GB 设备上分别测试显存、性能与效果
 
 ## Notes
