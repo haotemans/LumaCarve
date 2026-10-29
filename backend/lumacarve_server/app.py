@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .routers.workflows import router as workflow_router
+from .routers.models import router as models_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     api.state.settings = settings
     api.include_router(workflow_router)
+    api.include_router(models_router)
 
     # CORS is not CSRF protection. Reject disallowed Origins even on simple
     # multipart POST requests, before routes read or persist any data.
