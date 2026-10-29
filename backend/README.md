@@ -2,12 +2,15 @@
 
 > 本阶段提供**可启动的本地 API 与可测试的调度基础**，不是已经能够生成图片或训练 LoRA 的完整后端。真实模型的 PyTorch/CUDA 适配器尚未连接；`POST /api/v1/jobs` 会明确返回 **503**，不会制造假图片、假 GPU 数值或假完成任务。
 
+## 一键创建统一 .venv（Windows PowerShell）
+
+在仓库根目录执行 `py -3.11 tools/setup.py --torch cu128 --attention auto`，安装报告位于 `LumaCarveData/dependency-install.json`。在 Windows 默认保留 PyTorch SDPA，不强制编译 FlashAttention/SageAttention；Linux + CUDA Toolkit 可以尝试两个包。详细见 [08-dependencies.md](docs/08-dependencies.md)、[09-install.md](docs/09-install.md)、[10-attention.md](docs/10-attention.md)。
+
 ## 快速启动（Windows PowerShell）
 
 ```powershell
 cd LumaCarve\backend
-py -m pip install -e ".[dev]"
-py -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
+..\.venv\Scripts\python.exe -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 ```
 
 打开 `http://127.0.0.1:8000/docs` 查看可交互 API 文档。`http://127.0.0.1:8000/api/v1/health` 应返回 `status=ok`。
@@ -22,6 +25,8 @@ py -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 | 模型索引 | `lumacarve_server/models.py` + `routers/models.py` | [04-model-registry.md](docs/04-model-registry.md) | `test_models.py` |
 | 图片上传与读取 | `lumacarve_server/assets.py` + `routers/assets.py` | [05-assets.md](docs/05-assets.md) | `test_assets.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
+| 一键环境安装 | `../tools/setup.py` + `pyproject.toml` | [08-dependencies.md](docs/08-dependencies.md), [09-install.md](docs/09-install.md) | `test_installer.py` |
+| Flash/Sage/SDPA 决策 | `lumacarve_runtime/attention.py` | [10-attention.md](docs/10-attention.md) | `test_attention.py` |
 | GPU/RAM/SSD 驻留策略 | `lumacarve_runtime/{graph,budget,residency,executor}.py` | [07-runtime.md](docs/07-runtime.md) | `test_runtime.py` |
 
 ## 测试

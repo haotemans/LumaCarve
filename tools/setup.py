@@ -57,7 +57,6 @@ def main() -> int:
     parser.add_argument("--strict-attention", action="store_true", help="Fail instead of SDPA fallback")
     parser.add_argument("--upgrade", action="store_true", help="Upgrade installed packages")
     args = parser.parse_args()
-    VENV.mkdir(parents=True, exist_ok=True) if False else None
     if not venv_python().is_file():
         venv.EnvBuilder(with_pip=True, clear=False).create(VENV)
     python = str(venv_python())

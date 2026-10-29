@@ -88,6 +88,10 @@ python -m unittest discover -s tests -v
 
 **Not yet connected:** actual GPU weights/transfers, PyTorch model adapters, memory telemetry, asynchronous transfers, Graph editor-to-engine serialization, real LoRA inference/training and performance benchmarks. See [backend/README.md](backend/README.md).
 
+## Unified Python environment and attention
+
+The Python backend, model loaders and training tools share one repository-root `.venv`. To install on Windows, run `py -3.11 tools/setup.py --torch cu128 --attention auto` from the root (choose a compatible official PyTorch wheel for your GPU). Linux with CUDA Toolkit may attempt both FlashAttention and SageAttention; unsupported builds fall back to PyTorch SDPA. Each installation writes a local dependency report. See [backend/docs/09-install.md](backend/docs/09-install.md) and [backend/docs/10-attention.md](backend/docs/10-attention.md). These are dependency and selection foundations—not proof of inference acceleration.
+
 ## Backend development and traceable commits
 
 The backend is developed in small modules, each with Python implementation, independent Markdown guide, and unittest tests. Start at **[backend/README.md](backend/README.md)** for the code ↔ docs ↔ test index and Windows startup commands.
