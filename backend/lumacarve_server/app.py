@@ -9,6 +9,8 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import Settings
+from .jobs import DisabledInference, JobQueue, JobStore
+from .routers.jobs import router as jobs_router
 from .routers.workflows import router as workflow_router
 from .routers.models import router as models_router
 from .routers.assets import router as assets_router
@@ -20,7 +22,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         settings.ensure_dirs()
-        yield
+        queue = JobQueue(JobStore(settings.database_path), DisabledInference(), settings.max_pending_jobs)
+        app.state.job_queue = queue
+        queue.start()
+        try:
+            yield
+        finally:
+            queue.close()
 
     api = FastAPI(
         title="LumaCarve Local API",
@@ -32,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api.include_router(workflow_router)
     api.include_router(models_router)
     api.include_router(assets_router)
+    api.include_router(jobs_router)
 
     # CORS is not CSRF protection. Reject disallowed Origins even on simple
     # multipart POST requests, before routes read or persist any data.
