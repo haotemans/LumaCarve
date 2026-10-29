@@ -263,3 +263,8 @@
   .is-graph-footer{flex-wrap:wrap}
 }
 @media(prefers-reduced-motion:reduce){.is-page *{scroll-behavior:auto!important;transition:none!important}}
+
+/* Optional graph-exposed controls remain visually consistent. */
+.is-negative-prompt{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.is-negative-prompt>label{font-size:10px;font-weight:660;color:#8a96ae}
+.is-negative-prompt textarea{min-height:66px;background:#f9faff9a}
