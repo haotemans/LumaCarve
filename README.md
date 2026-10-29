@@ -2,7 +2,7 @@
 
 **A modular, local-first studio for LoRA training and text-to-image creation.**
 
-> **Project status:** Architecture and product design in progress. Training and inference features described below are design goals, not implemented or benchmarked capabilities.
+> **Project status:** Frontend preview and a Python scheduling/residency policy foundation exist. Real PyTorch/CUDA training and inference, speedups and 8/16/24 GB support are not implemented or benchmarked yet.
 
 LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与文生图创作工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
 
@@ -64,8 +64,28 @@ LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与文生
 
 模型文件可以从项目内目录或系统路径选择；缺失且未指定路径时，计划提供从 ModelScope（魔搭）或 Hugging Face 的首次自动下载。下载必须校验模型版本、许可与文件完整性。
 
+## Current runtime foundation (implemented)
+
+The `backend/lumacarve_runtime` Python package provides a device-independent runtime skeleton:
+
+- `ExecutionPlanner` (`compile_workflow`): validates the Graph and computes dependency ordering and output lifetimes. The Graph defines execution flow; parameter mode is only a lightweight view of explicitly exposed settings.
+- `MemoryBudgetController` (`MemoryBudget` / `preflight`): checks estimated simultaneous component-weight sizes with reserved headroom. This is **not** a measured CUDA peak-memory predictor.
+- `ModelResidencyManager`: hot GPU / warm CPU / cold unloaded state accounting, LRU eviction, shared-instance leasing and protection against unloading active components.
+- `run_plan`: executes a compiled plan through a user-provided callback, releasing dead intermediate results.
+- Multiple LoRA identities can share one base-model component without an artificial item-count limit; available memory and model compatibility still constrain how many can be active.
+
+Runtime unit tests (no GPU or PyTorch required):
+
+```bash
+cd backend
+python -m unittest discover -s tests -v
+```
+
+**Not yet connected:** actual GPU weights/transfers, PyTorch model adapters, memory telemetry, asynchronous transfers, Graph editor-to-engine serialization, real LoRA inference/training and performance benchmarks. See [backend/README.md](backend/README.md).
+
 ## Roadmap
 
+- [x] 无 GPU 依赖的 Graph 执行计划、模型驻留策略、预算预检与单元测试基础
 - [ ] 固化技术架构与模型适配器协议
 - [ ] 实现模型管理与精度检查
 - [ ] 实现本地 Latent 缓存与模型卸载
