@@ -10,3 +10,6 @@
 
 
 Anima Base 1.0 已作为默认初始模型（当前仅 `create`），Qwen 等仍保留在模型选择中但不宣称已接入后端。切换模式不会创建第二套 Graph 状态，后端实际执行能力仍以 API 为准。
+
+
+首个可执行的 Anima 默认 Graph 模板直接暴露 `prompt`、`negativePrompt`、`steps`、`seed`、`aspect`、`guidance`；Anima 不支持透明背景，默认隐藏 `transparent`，用户仍可在 Graph 中检查 `output` 节点。任何暴露更改都写入同一个 Graph `exposed` 数组，不生成额外状态。

@@ -91,13 +91,13 @@ function makeNode(kind: NodeKind, id: string, x: number, y: number, modelId: str
   const common = { id, kind, x, y };
   switch (kind) {
     case 'model': return { ...common, params: { modelId }, exposed: ['modelId'] };
-    case 'prompt': return { ...common, params: { prompt: '', negativePrompt: '' }, exposed: ['prompt'] };
+    case 'prompt': return { ...common, params: { prompt: '', negativePrompt: '' }, exposed: ['prompt','negativePrompt'] };
     case 'references': return { ...common, params: {}, exposed: ['images'] };
     case 'mask': return { ...common, params: {}, exposed: ['mask'] };
     case 'lora': return { ...common, params: { loras: [] }, exposed: ['loras'] };
-    case 'sampler': return { ...common, params: { steps: 28, seed: 8492014, aspect: '1:1', guidance: 4 }, exposed: ['steps','seed','aspect'] };
+    case 'sampler': return { ...common, params: { steps: 28, seed: 8492014, aspect: '1:1', guidance: 4 }, exposed: ['steps','seed','aspect','guidance'] };
     case 'vae': return { ...common, params: {}, exposed: [] };
-    case 'output': return { ...common, params: { transparent: false }, exposed: ['transparent'] };
+    case 'output': return { ...common, params: { transparent: false }, exposed: modelId === 'anima-base-1' ? [] : ['transparent'] };
   }
 }
 function edge(source: string, target: string): StudioEdge {
