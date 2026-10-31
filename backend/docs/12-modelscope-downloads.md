@@ -44,3 +44,6 @@ ModelScope SDK 提供断点续传和可用的 SHA-256 校验。**若上游没有
 隔离路径：`model/bundles/anima-base-1/{modelscope|huggingface}/{revision}/`；Hugging Face 默认 `main`，ModelScope 默认 `master`。本次不移动其它已有模型的目录。
 
 中国大陆用户如需第一阶段推理，可在下载 API 指定 `provider="huggingface"`。魔搭原始文件未来由单文件适配器加载，**不能将其错误传入 ModularPipeline**。
+
+
+修复：后台下载线程必须将 `job.provider` 传给 `model_destination()`，确保 Anima 分格式目录解析与提交 API 一致。对应新增真实线程 API 测试，验证 ModelScope mock 文件通过校验后存放在隔离目录，不会混入 Hugging Face 权重。

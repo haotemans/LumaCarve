@@ -22,7 +22,7 @@ dev = ["httpx>=0.27,<1"]
 # The installer selects the correct PyTorch GPU wheel before installing extras.
 inference = [
     "torch>=2.3",
-    "diffusers>=0.40,<0.42",
+    "diffusers>=0.42.1,<0.43",
     "transformers>=4.50,<6",
     "accelerate>=1.2",
     "safetensors>=0.4",

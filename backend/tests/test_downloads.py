@@ -36,6 +36,50 @@ class ModelDownloadTests(unittest.TestCase):
                 self.assertEqual(entry["format"], "comfyui_split")
                 self.assertFalse(entry["supports_lumacarve_inference"])
 
+    def test_anima_download_worker_uses_provider_isolated_destination(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                data_dir=Path(tmp), allow_model_download=True, download_region="cn"
+            )
+            settings.ensure_dirs()
+            def fake_download(provider, repo_id, revision, destination, *, allow_patterns=None):
+                self.assertEqual(provider, "modelscope")
+                for rel in (
+                    "split_files/diffusion_models/anima-base-v1.0.safetensors",
+                    "split_files/text_encoders/qwen_3_06b_base.safetensors",
+                    "split_files/vae/qwen_image_vae.safetensors",
+                ):
+                    path = destination / rel
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b"mock")
+                return destination
+            with patch(
+                "lumacarve_server.model_downloads.download_snapshot",
+                side_effect=fake_download,
+            ):
+                with TestClient(create_app(settings)) as client:
+                    response = client.post(
+                        "/api/v1/downloads",
+                        json={"model_id": "anima-base-1", "provider": "modelscope"},
+                    )
+                    self.assertEqual(response.status_code, 202, response.text)
+                    import time
+                    state = None
+                    for _ in range(100):
+                        state = client.get(
+                            "/api/v1/downloads/" + response.json()["id"]
+                        ).json()
+                        if state["state"] in ("completed", "failed"):
+                            break
+                        time.sleep(.01)
+                    self.assertEqual(state["state"], "completed", state)
+                    location = model_destination(
+                        settings, "anima-base-1", "master", provider="modelscope"
+                    )
+                    self.assertTrue(
+                        (location / ".lumacarve-complete").is_file()
+                    )
+
     def test_unknown_model_or_revision_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             settings=Settings(data_dir=Path(temp),allow_model_download=True)

@@ -167,7 +167,9 @@ class ModelDownloadManager:
         with self._lock:
             job = self._jobs[job_id]
             job.state = "running"
-            destination = model_destination(self.settings, job.model_id, job.revision)
+            destination = model_destination(
+                self.settings, job.model_id, job.revision, provider=job.provider
+            )
         partial = destination.parent / (destination.name + ".partial")
         try:
             partial.mkdir(parents=True, exist_ok=True)

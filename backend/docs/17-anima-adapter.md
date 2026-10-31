@@ -50,7 +50,7 @@ cd backend
 py -3.11 -m unittest discover -s backend/tests -p test_anima.py -v
 ```
 
-CPU 单元测试通过可证明工作流转换、加载生命周期和保存行为，不证明任何显卡已经实际生成图片。Diffusers ModularPipeline Anima 支持依赖现行版本（建议先固定已验证的 0.40+），不能使用过旧的 Diffusers 自动安装后宣称可用。
+CPU 单元测试通过可证明工作流转换、加载生命周期和保存行为，不证明任何显卡已经实际生成图片。Diffusers ModularPipeline Anima 支持依赖现行版本（选择包含 Anima 模块的 Diffusers v0.42.1 API；仍须通过用户 GPU 实测），不能使用过旧的 Diffusers 自动安装后宣称可用。
 
 
 ## 测试覆盖
