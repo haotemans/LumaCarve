@@ -2,6 +2,8 @@
 //! No Python callback is run with an active Rust mutex or resource lease.
 use crate::cache::{fingerprints, FingerprintNode};
 use crate::graph::{compile, NodeSpec, SchedulerError};
+use crate::incremental::{plan_incremental, CachedOutput};
+use std::collections::BTreeMap;
 use crate::queue::{select_job, JobPriority, JobScheduler, JobState, PendingJob};
 use crate::resources::{MemoryArbiter, Reservation, ResourceBudget};
 use pyo3::exceptions::PyValueError;
@@ -37,6 +39,23 @@ fn choose_queued_job(pending_json: &str, interactive_streak: u32)
         .map_err(|err| PyValueError::new_err(err.to_string()))?;
     let decision = select_job(&pending, interactive_streak).map_err(python_error)?;
     Ok(decision.map(|choice| (choice.id, choice.next_interactive_streak)))
+}
+
+
+#[pyfunction]
+fn plan_incremental_json(
+    nodes_json: &str,
+    cached_json: &str,
+    output_ids_json: &str,
+) -> PyResult<String> {
+    let nodes: Vec<FingerprintNode> = serde_json::from_str(nodes_json)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let cached: BTreeMap<String, CachedOutput> = serde_json::from_str(cached_json)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let outputs: Vec<String> = serde_json::from_str(output_ids_json)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let plan = plan_incremental(&nodes, &cached, &outputs).map_err(python_error)?;
+    serde_json::to_string(&plan).map_err(|err| PyValueError::new_err(err.to_string()))
 }
 
 fn py_priority(value: &str) -> PyResult<JobPriority> {
@@ -147,6 +166,7 @@ impl RustMemoryArbiter {
 fn lumacarve_scheduler(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compile_graph_json, m)?)?;
     m.add_function(wrap_pyfunction!(fingerprints_json, m)?)?;
+    m.add_function(wrap_pyfunction!(plan_incremental_json, m)?)?;
     m.add_function(wrap_pyfunction!(choose_queued_job, m)?)?;
     m.add_class::<RustJobScheduler>()?;
     m.add_class::<RustMemoryArbiter>()?;

@@ -4,6 +4,7 @@ Real PyO3 extension is installed by scheduler-ci; unit CI without Rust uses
 Python fallback and a deliberately malformed fake extension.
 """
 import unittest
+import json
 from unittest.mock import patch
 
 from lumacarve_runtime.graph import WorkflowNode, compile_workflow, InvalidWorkflow
@@ -63,6 +64,38 @@ class RustBridgeTests(unittest.TestCase):
             arbiter.reserve("vae", 4, 3)
         self.assertEqual(arbiter.release("dit"), (6, 10))
         self.assertEqual(arbiter.used(), (0, 0))
+
+
+    def test_rust_incremental_plan_reuses_valid_text_embeddings(self):
+        if scheduler_backend() != "rust":
+            self.skipTest("Optional Rust extension not installed")
+        import lumacarve_scheduler
+        nodes = [
+            {"node_id": "encode", "operation": "encode", "depends_on": [],
+             "params": {"prompt": "moon"}, "model_revision": "model-v1"},
+            {"node_id": "sample", "operation": "sample", "depends_on": ["encode"],
+             "params": {"seed": 7}, "model_revision": "model-v1"},
+            {"node_id": "decode", "operation": "decode", "depends_on": ["sample"],
+             "params": {}, "model_revision": "model-v1"},
+        ]
+        metadata = json.dumps(nodes)
+        fingerprints = json.loads(lumacarve_scheduler.fingerprints_json(metadata))
+        cached = {"encode": {"fingerprint": fingerprints["encode"], "available": True}}
+        plan = json.loads(lumacarve_scheduler.plan_incremental_json(
+            metadata, json.dumps(cached), json.dumps(["decode"])
+        ))
+        self.assertEqual(plan["executed"], 2)
+        self.assertEqual(plan["reused"], 1)
+        self.assertEqual([(step["node_id"], step["action"]) for step in plan["steps"]], [
+            ("encode", "reuse"), ("sample", "execute"), ("decode", "execute")
+        ])
+        # A cache fingerprint is not enough if Python has already evicted data.
+        cached["encode"]["available"] = False
+        evicted = json.loads(lumacarve_scheduler.plan_incremental_json(
+            metadata, json.dumps(cached), json.dumps(["decode"])
+        ))
+        self.assertEqual(evicted["executed"], 3)
+        self.assertEqual(evicted["reused"], 0)
 
 
 if __name__ == "__main__":

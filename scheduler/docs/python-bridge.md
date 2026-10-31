@@ -6,6 +6,7 @@
 
 - `compile_graph_json(nodes_json)`：JSON 数组 `NodeSpec` → JSON `ExecutionPlan`。
 - `fingerprints_json(nodes_json)`：小型节点元数据 → JSON SHA-256 签名。
+- `plan_incremental_json(nodes_json,cached_json,output_ids_json)`：针对指定输出编译最小执行/复用计划，**只处理缓存元数据**。
 - `choose_queued_job(pending_json, consecutive_interactive)`：读取 SQLite 持久队列快照，返回 `(任务 ID, 新连续交互次数)`，**不修改队列**。
 - `RustJobScheduler(maximum_active)`：`submit(id,priority)`、`start_next()`、`cancel(id)`、`should_cancel(id)`、`finish(id,succeeded)`。
 - `RustMemoryArbiter(gpu_budget,cpu_budget)`：`reserve(id,gpu_bytes,cpu_bytes)`、`release(id)`、`used()`。

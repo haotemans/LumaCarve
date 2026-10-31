@@ -19,3 +19,8 @@
 当前完成 CPU-only Rust 计划与测试；下一小批通过 PyO3 暴露可选计划 API，之后由 Python 模型执行器在开始任务时传入**真实有效的缓存对象目录**，才可以省略 Text Encoder / VAE 等节点的实际计算。
 
 只有缓存对象真正存在、模型与数据版本匹配且运行时保证引用有效，才算完成 ComfyUI 风格增量计算。不能把这个静态计划模块宣称为真实模型加速。
+
+
+## 可选 Python 绑定
+
+通过 maturin 构建 `lumacarve_scheduler` 扩展后，`plan_incremental_json(nodes,cached,outputs)` 返回 JSON 格式的执行/复用步骤；`fingerprints_json` 给出相同输入对应签名。Python 只有在缓存对象真实可访问时才应传入 `available=true`。真实 GPU 执行器尚未使用该计划，不可声称已经节省扩散计算。
