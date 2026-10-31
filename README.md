@@ -20,6 +20,17 @@ Existing Graph/parameter UI files now reside together in `frontend/src/features/
 
 Technical choices: **React + TypeScript + Vite + React Flow** (UI); **Python 3.11+ + FastAPI + Pydantic** (local API); **SQLite + filesystem** (jobs/assets); **PyTorch + Diffusers + model-specific adapters** (planned inference/training), with optional FlashAttention/SageAttention and SDPA fallback. Heavy model loading is intentionally absent from API startup.
 
+## Anima Base 1.0 · first inference integration
+
+**Anima Base 1.0 is the first backend model family implemented.** Its optional Diffusers ModularPipeline adapter runs from verified local files through PyTorch/CUDA, uses the shared Rust-informed SQLite job queue, supports a LoRA Stack, and returns PNG outputs via `GET /api/v1/outputs/{output_id}`. The Image Studio now submits, polls and displays real results rather than pretending a model ran. These are code and CPU-mock-tested integration paths; **no actual GPU inference benchmark has been completed**.
+
+- [Anima inference adapter](backend/docs/17-anima-adapter.md)
+- [ModelScope / Hugging Face source compatibility](backend/docs/12-modelscope-downloads.md)
+- [Real GPU smoke-test CLI](backend/docs/19-anima-smoke.md)
+- [Image Studio API](frontend/src/features/image-studio/docs/api.md)
+
+Anima's official ModelScope repo stores ComfyUI split weights, while the current runnable adapter expects the separate Hugging Face **Diffusers modular** snapshot. Select the `huggingface` provider when downloading Anima for this adapter. Split-weight loading from ModelScope is **not implemented yet**.
+
 ## Planned model support
 
 - **Qwen-Image-2.1**（统一生成、图像编辑、多图参考、局部编辑和原生 RGBA，能力以官方文档与适配器验证为准）
@@ -81,7 +92,7 @@ Graph scheduling and cache-policy metadata now have an independent Rust crate in
 
 规划页面：**监控仪表盘、LoRA 训练、图像工作室、出图管理、数据集查看、模型管理、任务历史、设置**。
 
-**图像工作室**同时支持文字生成、参考图片编辑、局部重绘。React Flow 的 Graph 节点定义流程，参数模式只展示显式暴露的必要参数；同一个 LoRA Stack 节点支持 0—N 个 LoRA，基础模型按实例共享。图像生成/编辑与 Graph 执行接口仍未连接后端，前端使用示例数据。
+**图像工作室**同时展示文字生成、参考图片编辑、局部重绘。React Flow 的 Graph 节点定义流程，参数模式只展示显式暴露的必要参数；同一个 LoRA Stack 节点支持 0—N 个 LoRA。**Anima 文字生图已连接真实 FastAPI 任务与结果 API**；其它模型的生成与图像编辑仍未接入，前端有明确标注的示例素材。
 
 Qwen-Image-2.1 已有官方模型权重与多图编辑能力说明，但 LumaCarve 的模型适配器尚未实现。
 
@@ -104,7 +115,7 @@ cd backend
 python -m unittest discover -s tests -v
 ```
 
-**Not yet connected:** actual GPU weights/transfers, PyTorch model adapters, memory telemetry, asynchronous transfers, Graph editor-to-engine serialization, real LoRA inference/training and performance benchmarks. See [backend/README.md](backend/README.md).
+**Not yet benchmarked:** actual Anima GPU inference (including real LoRA execution), memory telemetry, asynchronous transfers, Rust GPU scheduling, LoRA training, 8/16/24GB performance and other model adapters. Anima adapter code and its UI/API/PNG path now exist; the generic runtime residency manager is not yet directly driving the Anima ModularPipeline. See [backend/README.md](backend/README.md).
 
 ## China / Global download routes
 
@@ -124,7 +135,7 @@ The Python backend, model loaders and training tools share one repository-root `
 
 The backend is developed in small modules, each with Python implementation, independent Markdown guide, and unittest tests. Start at **[backend/README.md](backend/README.md)** for the code ↔ docs ↔ test index and Windows startup commands.
 
-Completed in the initial backend phase: local FastAPI bootstrap, Graph schema and dependency validation, safe model-file indexing, bounded image asset storage, SQLite jobs, and budgeted model residency policy. Real image generation/editing and GPU training are **not** available yet and the job endpoint returns 503 without an inference adapter.
+Completed in the initial backend phase: local FastAPI bootstrap, Graph validation, bounded image assets, SQLite jobs, Rust queue choice, and an **opt-in Anima Base 1.0 generation adapter**. By default the inference backend remains disabled and job submissions return 503 unless the compatible model is installed and the adapter enabled. Qwen editing and GPU training are not implemented.
 
 ## Roadmap
 
@@ -136,7 +147,8 @@ Completed in the initial backend phase: local FastAPI bootstrap, Graph schema an
 - [ ] 实现 Text Encoder 缓存、CPU 编码与预取
 - [ ] 实现 Diffusion Transformer LoRA 训练闭环
 - [ ] 实现训练监控及 Epoch 采样对比
-- [ ] 接入图像生成与编辑工作流
+- [x] Anima Base 1.0 文字生成连接本地 FastAPI / SQLite / PNG 输出（尚待真实 GPU 实测）
+- [ ] 接入其它模型生成与图像编辑工作流
 - [ ] 在 8 GB / 16 GB / 24 GB 设备上分别测试显存、性能与效果
 
 ## Notes

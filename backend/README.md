@@ -60,6 +60,21 @@ py -m unittest discover -s tests -v
 
 GitHub Actions 在 `.github/workflows/backend-ci.yml` 中执行 Python 3.11 测试；不需要 GPU。
 
+## Anima 本地生图启动
+
+先在项目根目录使用 `tools/setup.py` 安装到同一个 `.venv`。对于 Anima Base 1.0 的首个运行适配器，模型必须是 Hugging Face 的 Diffusers ModularPipeline 格式；魔搭官方分文件 checkpoint 尚不能由此适配器直接读取。可在下载 API 提交 `{"model_id":"anima-base-1","provider":"huggingface"}`，或用 `LUMACARVE_ANIMA_MODEL_PATH` 指向本地完整模型路径。
+
+Windows PowerShell：
+
+```powershell
+$env:LUMACARVE_INFERENCE_BACKEND="anima"
+$env:LUMACARVE_INFERENCE_OFFLOAD="auto"
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
+```
+
+独立 GPU 烟雾测试见 [19-anima-smoke.md](docs/19-anima-smoke.md)。**本仓库 CI 为 CPU/mock 测试，真实出图速度、显存和多 LoRA 兼容性需要目标显卡实测。**
+
 ## Rust 调度内核（元数据策略已实现，GPU 执行未接通）
 
 Rust 代码位于 [`scheduler/`](../scheduler/README.md)。它包含 DAG 计划、节点缓存签名、增量缓存计划、单 GPU 优先级策略、内存预算租约和可选 PyO3 扩展。SQLite 任务领取已经使用 Rust 优先的无副作用队列选择；Python 仍控制实际模型执行。通过 maturin 安装到同一个 `.venv` 后，Python Graph 编译优先调用 Rust；没有扩展则使用 Python 实现。详细说明见 [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md)。
