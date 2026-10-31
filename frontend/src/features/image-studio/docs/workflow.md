@@ -7,3 +7,6 @@
 `makeWorkflow` 建立默认模板；`validateImport` 仅用于浏览器导入校验；服务器端 `backend/lumacarve_server/workflows.py` 才是提交执行时的最终结构校验。新增 Graph 节点类型须同时更新服务端类型和双方测试。
 
 **测试入口**：`frontend/npm run build` + `backend/tests/test_workflows.py`。不允许通过改目录重置或默默升级工作流 JSON 格式。
+
+
+Anima Base 1.0 已作为默认初始模型（当前仅 `create`），Qwen 等仍保留在模型选择中但不宣称已接入后端。切换模式不会创建第二套 Graph 状态，后端实际执行能力仍以 API 为准。

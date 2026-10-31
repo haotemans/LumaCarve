@@ -52,8 +52,8 @@ export interface StudioField {
   widget: 'textarea' | 'text' | 'number' | 'select' | 'image-list' | 'mask' | 'lora-list' | 'switch' | 'range';
 }
 export const studioModels: readonly StudioModel[] = [
+  { id: 'anima-base-1', label: 'Anima Base 1.0', subtitle: '本地 CUDA 文字生成 · 首个适配器', intents: ['create'], maxReferences: 0, supportsMask: false, supportsAlpha: false, status: '需安装权重后启用' },
   { id: 'qwen-image-2.1', label: 'Qwen-Image-2.1', subtitle: '统一生成与编辑 · 7B', intents: ['create','reference','inpaint'], maxReferences: 10, supportsMask: true, supportsAlpha: true, status: '适配规划中' },
-  { id: 'anima-base-1', label: 'Anima Base 1.0', subtitle: '模型适配计划', intents: ['create'], maxReferences: 0, supportsMask: false, supportsAlpha: false, status: '适配规划中' },
   { id: 'moss-image', label: 'MOSS-Image', subtitle: '模型适配计划', intents: ['create'], maxReferences: 0, supportsMask: false, supportsAlpha: false, status: '适配规划中' },
   { id: 'krea-2-raw', label: 'Krea 2 RAW', subtitle: '模型适配计划', intents: ['create'], maxReferences: 0, supportsMask: false, supportsAlpha: false, status: '适配规划中' },
 ];
@@ -103,7 +103,7 @@ function makeNode(kind: NodeKind, id: string, x: number, y: number, modelId: str
 function edge(source: string, target: string): StudioEdge {
   return { id: 'edge-' + source + '-' + target, source, target };
 }
-export function makeWorkflow(intent: StudioIntent = 'create', modelId = 'qwen-image-2.1'): StudioWorkflow {
+export function makeWorkflow(intent: StudioIntent = 'create', modelId = 'anima-base-1'): StudioWorkflow {
   const nodes: StudioNode[] = [
     makeNode('model','model',20,140,modelId),
     makeNode('lora','lora',240,140,modelId),
@@ -129,7 +129,7 @@ export function makeWorkflow(intent: StudioIntent = 'create', modelId = 'qwen-im
 }
 export function getModelId(workflow: StudioWorkflow): string {
   const value = workflow.nodes.find(n => n.kind === 'model')?.params.modelId;
-  return typeof value === 'string' ? value : 'qwen-image-2.1';
+  return typeof value === 'string' ? value : 'anima-base-1';
 }
 export function getField(workflow: StudioWorkflow, id: FieldId): {node: StudioNode; value: FieldValue | undefined} | undefined {
   const node = workflow.nodes.find(n => n.exposed.includes(id));

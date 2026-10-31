@@ -17,6 +17,10 @@ import {
 import type {
   FieldId, FieldValue, LoRAEntry, NodeKind, StudioIntent, StudioNode, StudioWorkflow,
 } from './workflow';
+import {
+  cancelImageJob, getImageJob, outputFromJob, submitImageJob,
+} from './api';
+import type { GeneratedImage, JobState } from './api';
 const GraphCanvas = lazy(() => import('./GraphCanvas'));
 
 type StudioView = 'parameters' | 'graph';
@@ -114,12 +118,46 @@ export default function ImageStudioPage({notify}:SharedProps){
   const [maskDirty,setMaskDirty]=useState(false);
   const [drawing,setDrawing]=useState(false);
   const [sampleIndex,setSampleIndex]=useState(0);
+  const [generatedImages,setGeneratedImages]=useState<GeneratedImage[]>([]);
+  const [selectedOutputId,setSelectedOutputId]=useState<string|null>(null);
+  const [activeJobId,setActiveJobId]=useState<string|null>(null);
+  const [runState,setRunState]=useState<JobState|'idle'|'submitting'>('idle');
   const [compare,setCompare]=useState(false);
   const pickerRef=useRef<HTMLInputElement>(null);
   const graphImportRef=useRef<HTMLInputElement>(null);
   const canvasRef=useRef<HTMLCanvasElement>(null);
   const imageUrls=useRef(new Set<string>());
   const maskPosition=useRef<{x:number;y:number}|null>(null);
+  const notifyRef=useRef(notify);
+  useEffect(()=>{notifyRef.current=notify;},[notify]);
+  useEffect(()=>{
+    if(!activeJobId)return;
+    let live=true, busy=false;
+    async function poll(){
+      if(busy)return;
+      busy=true;
+      try{
+        const job=await getImageJob(activeJobId!);
+        if(!live)return;
+        setRunState(job.state);
+        if(job.state==='completed'){
+          const output=outputFromJob(job);
+          setGeneratedImages(previous=>[...previous,output].slice(-20));
+          setSelectedOutputId(output.outputId);
+          setActiveJobId(null);
+          notifyRef.current('Anima 已生成真实 PNG 图片','success');
+        }else if(job.state==='failed'||job.state==='cancelled'){
+          setActiveJobId(null);
+          notifyRef.current(job.state==='failed'?(job.error||'Anima 生成失败'):'已取消生成','warning');
+        }
+      }catch(error){
+        if(live)notifyRef.current(error instanceof Error?error.message:'无法查询生成状态','warning');
+      }finally{busy=false;}
+    }
+    void poll();
+    const timer=window.setInterval(()=>void poll(),1500);
+    return()=>{live=false;window.clearInterval(timer);};
+  },[activeJobId]);
 
   useEffect(()=>()=>{imageUrls.current.forEach(url=>URL.revokeObjectURL(url));imageUrls.current.clear();},[]);
 
@@ -278,10 +316,42 @@ export default function ImageStudioPage({notify}:SharedProps){
   function setNodePosition(id:string,x:number,y:number){
     setWorkflow(prev=>({...prev,nodes:prev.nodes.map(node=>node.id===id?{...node,x,y}:node)}));
   }
-  function requestRun(){notify('当前为前端演示。尚未连接图像生成/编辑的 Python 推理后端','warning');}
+  async function requestRun(){
+    if(activeJobId||runState==='submitting')return;
+    if(modelId!=='anima-base-1'||workflow.intent!=='create'){
+      notify('当前已接入 Anima Base 1.0 文字生成；其他模型与编辑后端尚未连接','warning');
+      return;
+    }
+    const prompt=workflow.nodes.find(node=>node.kind==='prompt')?.params.prompt;
+    if(typeof prompt!=='string'||!prompt.trim()){
+      notify('请先输入创作指令','warning');
+      return;
+    }
+    setRunState('submitting');
+    try{
+      const job=await submitImageJob(workflow);
+      setRunState(job.state);
+      setActiveJobId(job.id);
+      notify('Anima 任务已进入本地队列','info');
+    }catch(error){
+      setRunState('failed');
+      notify(error instanceof Error?error.message:'创建 Anima 任务失败','warning');
+    }
+  }
+  async function requestCancel(){
+    if(!activeJobId)return;
+    try{
+      await cancelImageJob(activeJobId);
+      notify('已请求取消，正在运行的 CUDA 步骤可能需要完成后才能停止','info');
+    }catch(error){
+      notify(error instanceof Error?error.message:'取消请求失败','warning');
+    }
+  }
   const loraBind=getField(workflow,'loras');
   const loras=Array.isArray(loraBind?.value)?(loraBind!.value as LoRAEntry[]):[];
-  const previewRatio=activeRef?activeRef.width+' / '+activeRef.height:(String(getValue('aspect')||'1:1').replace(':',' / '));
+  const visibleOutput=generatedImages.find(item=>item.outputId===selectedOutputId)||generatedImages.at(-1);
+  const previewRatio=activeRef?activeRef.width+' / '+activeRef.height:
+    (visibleOutput?visibleOutput.width+' / '+visibleOutput.height:String(getValue('aspect')||'1:1').replace(':',' / '));
   const previewSource=Boolean(activeRef);
   const showPrompt=showField('prompt');
   const masked=showField('mask')&&model.supportsMask;
@@ -358,28 +428,33 @@ export default function ImageStudioPage({notify}:SharedProps){
 
       <div className="is-column is-center-column">
         <section className="is-panel is-canvas-panel">
-          <div className="is-canvas-top"><div className="is-preview-title"><span className="is-preview-dot"/><strong>{previewSource?'原图预览':'创作画布'}</strong><small>{previewSource?'REFERENCE IMAGE':'SAMPLE VIEW'}</small></div><div className="is-canvas-actions">
+          <div className="is-canvas-top"><div className="is-preview-title"><span className="is-preview-dot"/><strong>{previewSource?'原图预览':'创作画布'}</strong><small>{previewSource?'REFERENCE IMAGE':visibleOutput?'GENERATED PNG':'SAMPLE VIEW'}</small></div><div className="is-canvas-actions">
             {previewSource&&<button className={'is-icon-label'+(compare?' active':'')} onClick={()=>setCompare(v=>!v)} title="对照示例"><ArrowLeftRight size={14}/>对比</button>}
-            <span className="is-canvas-size">{activeRef?activeRef.width+' × '+activeRef.height:String(getValue('aspect')||'1:1')}</span>
+            <span className="is-canvas-size">{activeRef?activeRef.width+' × '+activeRef.height:visibleOutput?visibleOutput.width+' × '+visibleOutput.height:String(getValue('aspect')||'1:1')}</span>
           </div></div>
           <div className="is-canvas-backdrop">
             <div className="is-preview-frame" style={{aspectRatio:previewRatio}}>
               {previewSource?<img className="is-main-image" src={activeRef!.url} alt={activeRef!.name}/>:
+              visibleOutput?<img className="is-main-image" src={visibleOutput.imageUrl} alt="Anima 实际生成图片"/>:
               <Artwork variant={sampleIndex+2} className="is-main-image" label="界面示意图，非真实生成结果"/>}
               {previewSource&&compare&&<div className="is-compare-placeholder"><Artwork variant={sampleIndex+2}/><span>示例对照</span></div>}
               {masked&&previewSource&&<canvas key={activeRef?.id+'-'+workflow.intent} ref={canvasRef} className={'is-mask-canvas'+(drawing?' drawing':'')} style={{opacity:.62}} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label="局部编辑蒙版绘制画布"/>}
-              <span className="is-preview-caption">{previewSource?(masked?'蒙版编辑 · 本地画布':'参考原图 · 本地预览'):'示例预览 · 未生成实际图片'}</span>
+              <span className="is-preview-caption">{previewSource?(masked?'蒙版编辑 · 本地画布':'参考原图 · 本地预览'):visibleOutput?'Anima 生成结果 · Seed '+visibleOutput.seed:'示例预览 · 未生成实际图片'}</span>
             </div>
-            {!previewSource&&<div className="is-placeholder-text"><span><Sparkles size={15}/> 连接生成后端后，结果将在这里显示</span></div>}
+            {!previewSource&&!visibleOutput&&<div className="is-placeholder-text"><span><Sparkles size={15}/> 连接生成后端后，结果将在这里显示</span></div>}
           </div>
-          <div className="is-canvas-bottom"><div className="is-canvas-filmstrip">{Array.from({length:5},(_,i)=><button className={sampleIndex===i?'active':''} key={i} title={'示例画面 '+(i+1)} onClick={()=>setSampleIndex(i)}><Artwork variant={i+2}/></button>)}</div><span>示例素材</span></div>
+          <div className="is-canvas-bottom"><div className="is-canvas-filmstrip">{generatedImages.length?
+              generatedImages.map(item=><button key={item.outputId} className={item.outputId===visibleOutput?.outputId?'active':''} onClick={()=>setSelectedOutputId(item.outputId)} title={'真实生成图片 · Seed '+item.seed}><img src={item.imageUrl} alt={'Anima 输出 '+item.outputId}/></button>):
+              Array.from({length:5},(_,i)=><button className={sampleIndex===i?'active':''} key={i} title={'示例画面 '+(i+1)} onClick={()=>setSampleIndex(i)}><Artwork variant={i+2}/></button>)}</div><span>{generatedImages.length?'Anima 生成历史':'示例素材'}</span></div>
         </section>
 
         {showPrompt&&<section className="is-panel is-prompt-panel">
           <div className="is-prompt-head"><div><Sparkles size={17}/><strong>{needsImage?'图像编辑指令':'画面描述'}</strong></div><span>从 Graph / 文本编码节点暴露</span></div>
           <textarea aria-label="创作指令" value={String(getValue('prompt')||'')} onChange={e=>updateField('prompt',e.target.value)} placeholder={needsImage?'描述要修改的内容，例如：保留人物身份，将衣服替换为第二张参考图中的外套，并保持背景一致':'描述想生成的画面、主体、光影、构图与风格……'} rows={3}/>
           {showField('negativePrompt')&&<div className="is-negative-prompt"><label htmlFor="studio-negative">排除内容 · Negative prompt</label><textarea id="studio-negative" aria-label="排除内容" rows={2} value={String(getValue('negativePrompt')||'')} onChange={e=>updateField('negativePrompt',e.target.value)} placeholder="排除不想出现的元素（实际支持程度由模型适配器决定）"/></div>}
-          <div className="is-prompt-footer"><span><CheckCircle2 size={14}/> 参数修改同步写入当前工作流</span><button className="is-generate-button" onClick={requestRun}><Zap size={16}/>{needsImage?'开始编辑':'开始生成'}<ArrowUpRight size={15}/></button></div>
+          <div className="is-prompt-footer"><span><CheckCircle2 size={14}/> 参数修改同步写入当前工作流</span><div className="is-generation-actions"><span aria-live="polite">{runState==='queued'?'任务排队中':runState==='running'?'正在生成图片':runState==='submitting'?'正在提交任务':''}</span>
+            {activeJobId&&<button className="is-cancel-generation" onClick={()=>void requestCancel()} type="button">取消任务</button>}
+            <button className="is-generate-button" onClick={()=>void requestRun()} disabled={Boolean(activeJobId)||runState==='submitting'}><Zap size={16}/>{activeJobId?'生成中':runState==='submitting'?'提交中':needsImage?'开始编辑':'开始生成'}<ArrowUpRight size={15}/></button></div></div>
         </section>}
         {!showPrompt&&<section className="is-panel is-prompt-disabled">工作流未暴露文本编码节点的 Prompt 参数。你可以在「节点工作流」视图中开放它。</section>}
       </div>
@@ -412,7 +487,7 @@ export default function ImageStudioPage({notify}:SharedProps){
           <div className="is-summary-row"><span>图像输入</span><b>{references.length} 张</b></div>
           <div className="is-summary-row"><span>LoRA</span><b>{loras.filter(x=>x.enabled).length} 个启用</b></div>
           <div className="is-summary-row"><span>蒙版</span><b>{maskDirty?'已绘制':'无'}</b></div>
-          <div className="is-summary-row"><span>执行状态</span><b className="is-muted-status">后端未连接</b></div>
+          <div className="is-summary-row"><span>执行状态</span><b className="is-muted-status">{runState==='idle'?'尚未提交任务':runState==='completed'?'已生成':runState==='queued'?'排队中':runState==='running'?'生成中':runState==='submitting'?'提交中':runState==='cancelled'?'已取消':'执行失败'}</b></div>
           <button className="is-summary-graph" onClick={()=>setView('graph')}><Workflow size={16}/> 查看完整节点图 <ArrowUpRight size={14}/></button>
         </section>
 
