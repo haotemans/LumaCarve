@@ -31,3 +31,8 @@ HTTP API：
 
 
 调度异常（例如 Rust wheel 与 Python 不兼容）会让 worker 停止领取新任务、保留 SQLite 中的 queued 记录，并在 `GET /api/v1/runtime` 返回 `queue_scheduler_error`；后续提交明确返回 503，供用户修复扩展后重启。
+
+
+## Windows SQLite 文件句柄修复
+
+此前使用 `with sqlite3.connect(...) as db` 只处理事务提交/回滚，**不会关闭连接**；Windows 临时目录清理因此触发 `WinError 32`。现在 `JobStore._connect()` 是专用 Context Manager，所有查询/原子领取均在事务结束时 `connection.close()`，同时保留异常回滚和连接独占锁。`test_jobs.py` 验证离开上下文后连接不可使用，Windows CI 再检验真实文件释放。

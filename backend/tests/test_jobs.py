@@ -57,6 +57,14 @@ class JobsTests(unittest.TestCase):
             finally:
                 queue.close()
 
+    def test_sqlite_connection_released_on_context_exit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = JobStore(Path(tmp) / "jobs.sqlite3")
+            with store._connect() as connection:
+                self.assertEqual(connection.execute("SELECT 1").fetchone()[0], 1)
+            with self.assertRaises(sqlite3.ProgrammingError):
+                connection.execute("SELECT 1")
+
     def test_claim_priority_is_fair_across_reopened_store(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "queue.sqlite3"

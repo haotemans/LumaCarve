@@ -5,6 +5,7 @@ The worker consumes tasks sequentially. No fake image is ever returned.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 import sqlite3
 import threading
 import time
@@ -89,10 +90,20 @@ class JobStore:
                 (time.time(),),
             )
 
+    @contextmanager
     def _connect(self):
+        """Commit/rollback AND close the SQLite handle on every platform.
+
+        sqlite3.Connection.__exit__ manages transactions but does not close
+        the file descriptor; leaked handles block Windows temp-file cleanup.
+        """
         connection = sqlite3.connect(self.path, timeout=5)
         connection.row_factory = sqlite3.Row
-        return connection
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def create(self, workflow: dict[str, Any], inputs: dict[str, Any],
                priority: str = "normal") -> dict[str, Any]:
