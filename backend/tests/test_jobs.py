@@ -106,8 +106,14 @@ class JobsTests(unittest.TestCase):
             entry=store.create(sample(),{})
             store.transition(entry["id"],"queued","running")
             store=JobStore(path)
-            self.assertEqual(store.get(entry["id"])["error"],"server_restarted")
-            self.assertEqual(store.get(entry["id"])["state"],"failed")
+            self.assertEqual(store.get(entry["id"])["state"],"running")
+            restarted=JobQueue(store,DisabledInference())
+            restarted.start()
+            try:
+                self.assertEqual(store.get(entry["id"])["error"],"server_restarted")
+                self.assertEqual(store.get(entry["id"])["state"],"failed")
+            finally:
+                restarted.close()
 
 
 if __name__ == "__main__":

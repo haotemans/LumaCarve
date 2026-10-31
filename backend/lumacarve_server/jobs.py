@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from lumacarve_runtime.queue_bridge import PRIORITIES, choose_pending_job
+from .instance_lock import LocalQueueLock
 
 STATUS = ("queued", "running", "completed", "failed", "cancelled")
 
@@ -76,10 +77,14 @@ class JobStore:
             connection.execute(
                 "INSERT OR IGNORE INTO scheduler_state(key,value) VALUES ('interactive_streak',0)"
             )
-            # Restarted process cannot magically resume in-flight CUDA tasks.
+
+    def recover_interrupted(self) -> None:
+        """Only the process owning the OS queue lock may call this."""
+        with self._lock, self._connect() as connection:
             connection.execute(
-                "UPDATE jobs SET state='failed', error='server_restarted', updated_at=? WHERE state='running'",
-                (time.time(),)
+                "UPDATE jobs SET state='failed', error='server_restarted', updated_at=? "
+                "WHERE state='running'",
+                (time.time(),),
             )
 
     def _connect(self):
@@ -193,18 +198,31 @@ class JobQueue:
         self._shutdown = threading.Event()
         self._cancel: dict[str, threading.Event] = {}
         self._thread: threading.Thread | None = None
+        self._owner = LocalQueueLock(store.path.with_name('gpu-worker.lock'))
 
     def start(self) -> None:
         if self._thread is not None:
             return
-        self._thread = threading.Thread(target=self._run, name="lumacarve-gpu-worker", daemon=True)
-        self._thread.start()
+        self._owner.acquire()
+        try:
+            self.store.recover_interrupted()
+            self._thread = threading.Thread(
+                target=self._run, name="lumacarve-gpu-worker", daemon=True
+            )
+            self._thread.start()
+        except BaseException:
+            self._owner.release()
+            self._thread = None
+            raise
 
     def close(self) -> None:
         self._shutdown.set()
         self._wakeup.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
+            if self._thread.is_alive():
+                raise RuntimeError("GPU worker is still active; refusing to release queue ownership")
+        self._owner.release()
 
     def submit(self, workflow: dict[str, Any], inputs: dict[str, Any], priority: str = "normal") -> dict[str, Any]:
         with self._lock:
