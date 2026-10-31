@@ -1,5 +1,6 @@
 import tempfile
 import sqlite3
+from contextlib import closing
 import threading
 import time
 import unittest
@@ -96,7 +97,7 @@ class JobsTests(unittest.TestCase):
     def test_migrate_old_sqlite_without_priority(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "queue.sqlite3"
-            with sqlite3.connect(path) as conn:
+            with closing(sqlite3.connect(path)) as conn, conn:
                 conn.execute("""CREATE TABLE jobs (
                     id TEXT PRIMARY KEY, state TEXT NOT NULL,
                     workflow TEXT NOT NULL, inputs TEXT NOT NULL,
