@@ -1,0 +1,17 @@
+name: Rust scheduler core
+on:
+  push:
+    paths:
+      - 'scheduler/**'
+      - '.github/workflows/scheduler-ci.yml'
+  pull_request:
+    paths:
+      - 'scheduler/**'
+      - '.github/workflows/scheduler-ci.yml'
+jobs:
+  cargo-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path scheduler/Cargo.toml --all-targets
