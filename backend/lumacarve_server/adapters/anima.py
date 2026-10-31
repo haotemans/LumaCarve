@@ -60,6 +60,12 @@ def find_anima_snapshot(settings: Settings) -> Path | None:
             continue
         if not all((folder / name).is_dir() for name in COMPONENTS):
             continue
+        weight_components = ("transformer", "vae", "text_encoder", "text_conditioner")
+        if any(
+            not any(p.is_file() for p in (folder / component).rglob("*.safetensors"))
+            for component in weight_components
+        ):
+            continue
         try:
             manifest = json.loads((folder / "modular_model_index.json").read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
