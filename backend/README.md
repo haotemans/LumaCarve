@@ -38,6 +38,7 @@ cd LumaCarve\backend
 | Graph 工作流校验 | `lumacarve_server/workflows.py` + `routers/workflows.py` | [03-workflow.md](docs/03-workflow.md) | `test_workflows.py` |
 | 模型索引 | `lumacarve_server/models.py` + `routers/models.py` | [04-model-registry.md](docs/04-model-registry.md) | `test_models.py` |
 | 图片上传与读取 | `lumacarve_server/assets.py` + `routers/assets.py` | [05-assets.md](docs/05-assets.md) | `test_assets.py` |
+| 本地 GPU worker 唯一所有权 | `lumacarve_server/instance_lock.py` | [16-single-instance-lock.md](docs/16-single-instance-lock.md) | `test_instance_lock.py` |
 | Rust/SQLite 调度桥接 | `lumacarve_runtime/queue_bridge.py` | [15-rust-queue-bridge.md](docs/15-rust-queue-bridge.md) | `test_queue_bridge.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
 | Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
@@ -59,7 +60,7 @@ GitHub Actions 在 `.github/workflows/backend-ci.yml` 中执行 Python 3.11 测�
 
 ## Rust 调度内核（元数据策略已实现，GPU 执行未接通）
 
-Rust 代码位于 [`scheduler/`](../scheduler/README.md)。它包含 DAG 计划、节点缓存签名、单 GPU 优先级队列、内存预算租约和可选 PyO3 扩展。通过 maturin 安装到同一个 `.venv` 后，Python Graph 编译优先调用 Rust；没有扩展则使用 Python 实现。详细说明见 [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md)。
+Rust 代码位于 [`scheduler/`](../scheduler/README.md)。它包含 DAG 计划、节点缓存签名、增量缓存计划、单 GPU 优先级策略、内存预算租约和可选 PyO3 扩展。SQLite 任务领取已经使用 Rust 优先的无副作用队列选择；Python 仍控制实际模型执行。通过 maturin 安装到同一个 `.venv` 后，Python Graph 编译优先调用 Rust；没有扩展则使用 Python 实现。详细说明见 [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md)。
 
 ## 接口状态
 

@@ -53,7 +53,11 @@ Rust **不**负责实现 CUDA 扩散算子、直接持有 Tensor 数据，也不
 1. 独立 `scheduler/` Rust crate：输入 v1 JSON，输出拓扑计划和中间结果最后使用位置；带 Cargo 单元测试。
 2. Rust 队列状态机/缓存签名：分离纯策略与 PyTorch 执行；测试任务取消、无环、独立分支失效。
 3. PyO3 在同一 Python 进程加载；用对照测试验证 Python/Rust 图执行顺序与最后引用位置一致。
-4. 逐步让 Python `JobQueue` 使用 Rust 调度决策，SQLite 继续是**唯一持久化任务真相**；迁移完成才删旧算法。
+4. **已实现第一步**：Python `JobQueue` 在 SQLite 事务内调用 Rust/回退队列选择策略；SQLite 仍是**唯一持久化任务真相**。完整 GPU 执行迁移尚未实现。
 5. 接入真实模型 Adapter 后测量 GPU 活跃度、内存峰值、缓存命中率及 Python ↔ Rust 边界开销。
 
 回退条件：Rust 扩展不可用/版本不匹配时不得破坏 API；无 GPU CI 仅证明调度正确性，不是模型推理完成。
+
+## 当前实现状态
+
+Rust 已实现 DAG 编译、缓存指纹、输出驱动的增量计划、队列优先级选择、GPU/RAM 资源预留纯策略，并提供 PyO3 扩展。Python JobStore 在 SQLite 原子领取事务中调用 Rust 的纯选择策略；缺少扩展时兼容回退。跨进程锁在 Windows/Linux 保护唯一 GPU worker。增量缓存计划尚未连接实际模型 Tensor，因此不能据此声称推理速度提高。

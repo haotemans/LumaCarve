@@ -31,7 +31,7 @@ Technical choices: **React + TypeScript + Vite + React Flow** (UI); **Python 3.1
 
 ## ComfyUI-inspired Rust scheduling core
 
-Graph scheduling and cache-policy metadata now have an independent Rust crate in [scheduler/](scheduler/README.md), plus an optional [PyO3 bridge](backend/docs/14-rust-graph-bridge.md) installed into the same root `.venv`. Design references: [ADR-0002](docs/architecture/ADR-0002-rust-scheduler-comfyui-reference.md). We reference ComfyUI's architecture patterns (lazy dependencies, cache signatures, resource decisions) but do not copy GPL code. Actual GPU model execution and the Python task queue are **not yet replaced by Rust**.
+Graph scheduling and cache-policy metadata now have an independent Rust crate in [scheduler/](scheduler/README.md), plus an optional [PyO3 bridge](backend/docs/14-rust-graph-bridge.md) installed into the same root `.venv`. Design references: [ADR-0002](docs/architecture/ADR-0002-rust-scheduler-comfyui-reference.md). We reference ComfyUI's architecture patterns (lazy dependencies, cache signatures, resource decisions) but do not copy GPL code. Python's SQLite queue now uses Rust's stateless task-choice policy when installed, with a tested Python fallback. **Real GPU execution, CUDA synchronization and Tensor cache eviction are still Python adapter work**, not completed Rust acceleration.
 
 ## Core design goals
 

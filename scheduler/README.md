@@ -1,6 +1,6 @@
 # LumaCarve Rust Scheduler (CPU-only policy core)
 
-> **当前实现：** Rust 调度的纯策略核心，不是 CUDA 或模型执行器。保留现有 Python API 和队列；尚未使用 Rust 驱动实际 GPU。
+> **当前实现：** Rust 调度的纯策略核心，不是 CUDA 或模型执行器。保留现有 Python API 和 SQLite 唯一队列；已由 Rust 优先选择待办任务，尚未使用 Rust 驱动实际 GPU 模型。
 
 | 文件 | 文档 | 职责 | 测试 |
 |---|---|---|---|
@@ -23,3 +23,7 @@ PyO3 wheel 可通过 maturin 编译并安装进项目**同一个 `.venv`**；已
 **不要在 Rust 中执行扩散模型或管理 CUDA Tensor**。Python/PyTorch 仍负责真实权重加载、内存同步和 LoRA 训练。即使 Rust 编译成功，实际生图 API 仍需适配器；`POST /api/v1/jobs` 未配置推理引擎时返回 503。集成方案见 [ADR-0002](../docs/architecture/ADR-0002-rust-scheduler-comfyui-reference.md)。
 
 注意：`scheduler/target/` 与 wheel 是本地编译产物，已由根目录 `.gitignore` 忽略，不能提交到仓库。
+
+## 与 Python 服务衔接
+
+Python JobStore 使用 `BEGIN IMMEDIATE` 原子领取 Rust 策略推荐的任务，持久化状态和公平计数均在 SQLite；不存在第二套 GPU 执行队列。`instance_lock.py` 使用 Windows/Linux 系统文件锁隔离不同服务实例。`plan_incremental_json` 已实现但尚未被真实模型 Adapter 消费。
