@@ -10,9 +10,16 @@ from .download_sources import resolve_region
 DEFAULT_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 
 
+def default_data_dir(repository: Path | None = None) -> Path:
+    """New installs use repository root while preserving existing legacy data."""
+    root = repository or Path(__file__).resolve().parents[3]
+    legacy = root / "backend" / "LumaCarveData"
+    return legacy if legacy.exists() else root / "LumaCarveData"
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
-    data_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parents[2] / "LumaCarveData")
+    data_dir: Path = field(default_factory=default_data_dir)
     host: str = "127.0.0.1"
     port: int = 8000
     allowed_origins: tuple[str, ...] = DEFAULT_ORIGINS
