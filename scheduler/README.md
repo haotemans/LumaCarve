@@ -20,3 +20,5 @@ cargo test --manifest-path scheduler/Cargo.toml --all-targets
 PyO3 wheel 可通过 maturin 编译并安装进项目**同一个 `.venv`**；已安装时 Python Graph 校验优先使用 Rust，缺失时使用 Python 计划编译。Rust 队列及资源仲裁尚未接管执行器；详见 [桥接文档](docs/python-bridge.md)。
 
 **不要在 Rust 中执行扩散模型或管理 CUDA Tensor**。Python/PyTorch 仍负责真实权重加载、内存同步和 LoRA 训练。即使 Rust 编译成功，实际生图 API 仍需适配器；`POST /api/v1/jobs` 未配置推理引擎时返回 503。集成方案见 [ADR-0002](../docs/architecture/ADR-0002-rust-scheduler-comfyui-reference.md)。
+
+注意：`scheduler/target/` 与 wheel 是本地编译产物，已由根目录 `.gitignore` 忽略，不能提交到仓库。

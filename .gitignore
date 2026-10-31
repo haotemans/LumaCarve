@@ -16,3 +16,10 @@ outputs/
 model/
 *.safetensors
 *.ckpt
+
+# Rust build / Python native extension outputs
+scheduler/target/
+target/
+*.whl
+*.pyd
+*.egg-info/
