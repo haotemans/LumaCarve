@@ -7,7 +7,7 @@
 | Web UI | React 18、TypeScript、Vite 6、Lucide | 保持 SPA；按需加载大型界面，不额外引入无必要的 UI 框架 |
 | 工作流编辑 | `@xyflow/react` 12 | Graph 为唯一工作流源，参数界面映射暴露字段；图结构序列化 `lumacarve.studio.workflow.v1` |
 | Backend API | Python 3.11+、FastAPI、Pydantic 2、Uvicorn | REST `/api/v1`；进度后续优先 SSE，双向控制用 REST；不在 API 启动时加载模型 |
-| 任务调度 | 线程调度与 SQLite 状态（已实现基础） | 计划隔离 CPU API 与单个 GPU 工作进程；Windows 使用 spawn；失败可恢复但不伪造任务完成 |
+| 底层调度 | **Rust** + PyO3 绑定（逐步实现），原有 Python 队列为过渡回退 | Rust 负责图计划、任务队列决策、缓存签名和资源租约；Python/PyTorch 负责计算和 CUDA 同步；SQLite 负责持久化 |
 | 模型推理 | PyTorch、Diffusers、Transformers、Accelerate、Safetensors（已声明依赖） | **真实 Qwen/Anima/MOSS/Krea 适配器尚未实现**；每家族单独验证组件和编辑能力 |
 | LoRA 训练 | PEFT、Datasets 等（已声明依赖） | 训练精度默认优先 BF16；训练循环/优化器/检查点待接入 |
 | Attention | PyTorch SDPA、可选 FlashAttention / SageAttention（策略实现） | SDPA 回退；推理 vs 训练分开，不能仅凭包存在就认定兼容或提速 |
@@ -15,6 +15,8 @@
 | 持久化 | `sqlite3` + 文件系统 | 避免为了单机产品引入 Redis、PostgreSQL、Celery；输出元数据和文件存储分开 |
 | Python 环境 | 仓库根目录单一 `.venv` + `tools/setup.py` | 模型共享 Python 环境，按需安装推理/训练依赖；GPU 扩展有兼容矩阵 |
 | CI | GitHub Actions、TypeScript build、Python unittest | 增加目录结构检查；将来加适配器协议测试、CPU 烟雾测试、GPU 性能基准 |
+
+详细方案：[ADR-0002：Rust 调度与 ComfyUI 架构参考](ADR-0002-rust-scheduler-comfyui-reference.md)。借鉴 ComfyUI 的增量执行、惰性依赖、节点缓存和模型管理，但不拷贝其 GPL 源码。
 
 ## 性能基线
 
@@ -29,7 +31,7 @@
 
 - 不为本地单用户应用添加微服务、Kubernetes、Redis、Kafka 或 Celery。
 - 不为每个模型创建独立 Python 虚拟环境。
-- 不并行引入两个工作流引擎或两套参数状态。
+- 不并行引入两个工作流引擎或两套参数状态。Rust 是目标执行调度核心，Python Graph 编译器只是迁移期兼容回退。
 - 桌面打包可以将来评估 Tauri / Python sidecar，但**目前不提前引入 Electron/Tauri 依赖**，先确保本地 WebUI 和推理闭环可用。
 - 不在未实测前把 FP8、INT8 和大规模异步预取宣布为默认优化。
 

@@ -41,6 +41,7 @@ LumaCarve/
 │   │   └── attention.py                # Attention 后端选择策略
 │   ├── docs/                           # 已有后端逐模块文档
 │   └── tests/                          # 后端无 GPU 单元测试
+├── scheduler/                          # Rust 调度核心（渐进接入；不是独立模型计算进程）
 ├── tools/                              # 安装、结构检查、将来诊断/基准脚本
 ├── project-layout.toml                 # 源码 ↔ Markdown ↔ 测试映射
 ├── .venv/                              # 唯一 Python 虚拟环境（Git 忽略）
@@ -52,7 +53,7 @@ LumaCarve/
 ```text
 React UI → HTTP /api/v1 → FastAPI Routers → 业务 Services
                                          ↓
-                            工作流编译 / 资源调度
+                       Rust 工作流编译 / 资源调度（PyO3）
                                          ↓
                              模型 Adapter（按需导入）
                                          ↓
@@ -61,7 +62,7 @@ React UI → HTTP /api/v1 → FastAPI Routers → 业务 Services
 
 - `frontend` **不直接导入** Python、PyTorch、CUDA 或 GPU 执行模块；业务状态由 API 同步。
 - `routers` 不包含长时间运行的模型推理，不自行管理 GPU 驻留；仅做参数校验、调用业务服务、状态映射。
-- `services` 调用 `lumacarve_runtime`，反过来核心调度层不依赖 FastAPI。
+- `services` 调用 Rust 调度决策接口并触发 Python 模型执行；原有 `lumacarve_runtime` 仍承担过渡期策略、真实模型驻留适配。Rust 库本身不依赖 FastAPI。
 - 模型适配器以统一协议承接 Qwen-Image、Anima、MOSS、Krea 等独立格式；不要在 `app.py` 中写每个模型的分支。
 - 训练和推理未来共享一个 GPU 资源仲裁器；不把训练放进另一个不受控的 CUDA 进程。
 - `frontend/src/features/` 为功能归属，`components/` 为真正复用的无领域组件。禁止“所有东西都放 components”。

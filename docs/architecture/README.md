@@ -10,6 +10,7 @@
 2. [02-tech-stack.md](02-tech-stack.md)：现有技术栈、后续组件选择、依赖原则。
 3. [03-data-layout.md](03-data-layout.md)：模型、数据集、缓存、下载与任务输出的数据布局。
 4. [ADR-0001-modular-monorepo.md](ADR-0001-modular-monorepo.md)：单仓库、单运行环境、独立模块的决策记录。
+5. [ADR-0002-rust-scheduler-comfyui-reference.md](ADR-0002-rust-scheduler-comfyui-reference.md)：ComfyUI 架构参考，Rust 调度 / Python 模型计算的边界。
 
 具体源文件的说明优先放在相应模块旁边，或沿用 `backend/docs/` 的已有说明。模块索引由根目录 `project-layout.toml` 记录，`tools/check_layout.py` 在 CI 中检查引用关系。
 
