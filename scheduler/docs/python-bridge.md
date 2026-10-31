@@ -1,0 +1,34 @@
+# python.rs · PyO3 绑定与同环境安装
+
+对应 Rust `src/python.rs`、`pyproject.toml` 和 `backend/lumacarve_runtime/rust_bridge.py`。Python 单元测试 `backend/tests/test_rust_bridge.py`，CI 通过 maturin 构建临时 wheel 后验证真实扩展可导入。
+
+## 模块 API
+
+- `compile_graph_json(nodes_json)`：JSON 数组 `NodeSpec` → JSON `ExecutionPlan`。
+- `fingerprints_json(nodes_json)`：小型节点元数据 → JSON SHA-256 签名。
+- `RustJobScheduler(maximum_active)`：`submit(id,priority)`、`start_next()`、`cancel(id)`、`should_cancel(id)`、`finish(id,succeeded)`。
+- `RustMemoryArbiter(gpu_budget,cpu_budget)`：`reserve(id,gpu_bytes,cpu_bytes)`、`release(id)`、`used()`。
+
+`priority` 为 `interactive/normal/background`。取消运行中任务只产生取消请求，不能强制抢占 CUDA。
+
+## 安装原则
+
+只有一个项目根 `.venv`。后端 API 安装到此环境，Rust 扩展也安装到同一个环境，**不启动独立 Rust HTTP 服务，不为 Rust 再建 Python 环境**。
+
+开发者安装示例（从项目根目录）：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install "maturin>=1.7,<2"
+.\.venv\Scripts\python.exe -m maturin develop --manifest-path scheduler/Cargo.toml --features python
+```
+
+需要本机 Rust 编译器和 Cargo。适用于 Windows/Linux；目前未提供经过 GPU 适配验证的二进制发行 wheel。
+
+## 兼容保证
+
+- 如果扩展不存在，`rust_bridge.py` 使用已存在的 Python Graph 编译器，API 仍能启动。
+- 如果扩展存在但返回异常/畸形计划，**报错而不隐藏回退**，避免两个执行器输出不一致。
+- Python/Rust 用相同的 v1 `node_id/operation/depends_on/components` 结构，入 Rust 前保留 Python 的模型语义和节点类型验证。
+- 禁止传输像素、Latent、Torch Tensor 或模型权重；JSON 只放图元信息和少量参数。
+
+**当前集成阶段：**真实 Graph 编译可选择 Rust；Rust 的队列及资源仲裁 Python 类型已经暴露，但 `JobQueue`/CUDA 尚未切换到 Rust 调度，防止迁移期双重执行。

@@ -3,10 +3,14 @@ on:
   push:
     paths:
       - 'scheduler/**'
+      - 'backend/lumacarve_runtime/rust_bridge.py'
+      - 'backend/tests/test_rust_bridge.py'
       - '.github/workflows/scheduler-ci.yml'
   pull_request:
     paths:
       - 'scheduler/**'
+      - 'backend/lumacarve_runtime/rust_bridge.py'
+      - 'backend/tests/test_rust_bridge.py'
       - '.github/workflows/scheduler-ci.yml'
 jobs:
   cargo-tests:
@@ -15,3 +19,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --manifest-path scheduler/Cargo.toml --all-targets
+  python-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install --upgrade pip "maturin>=1.7,<2"
+      - run: .venv/bin/python -m maturin develop --manifest-path scheduler/Cargo.toml --features python
+      - run: .venv/bin/python -m pip install -e "./backend[dev]"
+      - run: .venv/bin/python -m unittest discover -s backend/tests -p 'test_rust_bridge.py' -v
