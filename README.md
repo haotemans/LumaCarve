@@ -1,10 +1,24 @@
 # LumaCarve · 琢影
 
-**A modular, local-first studio for LoRA training and text-to-image creation.**
+**A modular, local-first studio for image generation, image editing and LoRA training.**
 
 > **Project status:** Frontend preview and a local FastAPI backend (graph validation, model discovery, image assets, SQLite job ledger, scheduling foundation) exist. Actual PyTorch/CUDA inference and LoRA training are NOT wired up or benchmarked.
 
 LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与图像创作、编辑工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
+
+## Architecture and technology stack
+
+LumaCarve is a **modular monorepo**, not a collection of services. Source files, user model weights, and runtime artifacts have separate ownership:
+
+- [Architecture overview](docs/architecture/README.md) · [Repository folders](docs/architecture/01-repository-layout.md)
+- [Technology stack and decisions](docs/architecture/02-tech-stack.md) · [User data and cache layout](docs/architecture/03-data-layout.md)
+- [ADR-0001: Modular monorepo](docs/architecture/ADR-0001-modular-monorepo.md)
+- [Module → Markdown → Test manifest](project-layout.toml) · [Image Studio feature](frontend/src/features/image-studio/README.md)
+- [Backend module guide](backend/README.md)
+
+Existing Graph/parameter UI files now reside together in `frontend/src/features/image-studio/`. The global layout checker requires registered backend and Image Studio source files to have documentation and verification paths. Some older frontend pages remain in `frontend/src/pages/` and will be migrated gradually.
+
+Technical choices: **React + TypeScript + Vite + React Flow** (UI); **Python 3.11+ + FastAPI + Pydantic** (local API); **SQLite + filesystem** (jobs/assets); **PyTorch + Diffusers + model-specific adapters** (planned inference/training), with optional FlashAttention/SageAttention and SDPA fallback. Heavy model loading is intentionally absent from API startup.
 
 ## Planned model support
 
@@ -111,7 +125,8 @@ Completed in the initial backend phase: local FastAPI bootstrap, Graph schema an
 ## Roadmap
 
 - [x] 无 GPU 依赖的 Graph 执行计划、模型驻留策略、预算预检与单元测试基础
-- [ ] 固化技术架构与模型适配器协议
+- [x] 固化仓库结构、目录归属、技术栈决策、源码-文档索引
+- [ ] 实现统一模型适配器协议与测试
 - [ ] 实现模型管理与精度检查
 - [ ] 实现本地 Latent 缓存与模型卸载
 - [ ] 实现 Text Encoder 缓存、CPU 编码与预取

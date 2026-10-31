@@ -15,7 +15,7 @@ LumaCarve/
 │       ├── App.tsx                     # 当前应用导航入口
 │       ├── main.tsx                    # 当前入口，未来可归入 app/
 │       ├── features/
-│       │   ├── image-studio/           # 图像生成/编辑 + Graph/参数两种视图（迁移中）
+│       │   ├── image-studio/           # 图像生成/编辑 + Graph/参数两种视图（已迁移）
 │       │   ├── training/               # 规划：LoRA 训练 UI
 │       │   ├── models/                 # 规划：模型/下载 UI
 │       │   ├── datasets/               # 规划：数据集管理 UI

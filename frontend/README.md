@@ -1,5 +1,7 @@
 # LumaCarve WebUI
 
+图像工作室已经迁入 [`src/features/image-studio/`](src/features/image-studio/README.md)：代码、Graph、独立样式与逐文件 Markdown 集中在一起。旧版训练/资源页面仍在 `src/pages/`，后续逐个迁移，不一次性破坏现有构建。全局结构与技术选择见 [架构规范](../docs/architecture/README.md)。
+
 React + TypeScript + Vite 前端初版，供 **WebUI 与未来的 Tauri 2 / Rust 桌面壳共用**。
 
 ## 启动
@@ -29,7 +31,7 @@ npm run dev
 
 ## 范围说明
 
-这里是**可运行的前端原型**，包含明确标记的示例数据。训练、采样、真实生成与编辑、GPU 监控、模型自动扫描、PNG 内嵌生成元数据写入、磁盘持久化、插件安装等**尚未接入 Python/FastAPI 后端**；按钮不会冒充完成真实训练/生图。浏览器中导入的本地图片与编辑状态在当前会话中可用，刷新页面后不保证保存。后续通过 API 和 WebSocket 接入真实引擎。
+这里是**可运行的前端原型**，包含明确标记的示例数据。训练、采样、真实生成与编辑、GPU 监控、模型自动扫描、PNG 内嵌生成元数据写入、磁盘持久化、插件安装等**尚未接入 Python/FastAPI 后端**；按钮不会冒充完成真实训练/生图。浏览器中导入的本地图片与编辑状态在当前会话中可用，刷新页面后不保证保存。后续先接入 REST 与任务进度（优先考虑 SSE），仅在确有双向实时数据需求时再使用 WebSocket。
 
 未引入外部人物图像，卡片默认使用本地 SVG 绘制的原创占位插画。
 

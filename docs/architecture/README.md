@@ -24,6 +24,6 @@
 
 ## 当前状态
 
-- 已有 `frontend/src/pages/`、`frontend/src/studio/`；图像工作室正在迁入 `frontend/src/features/image-studio/`。
+- 图像工作室已迁入 `frontend/src/features/image-studio/`，Graph、参数页面和样式同处该模块。其它旧页面暂留 `frontend/src/pages/`，后续逐个迁移。
 - 已有 `backend/lumacarve_server/`（HTTP API 与业务）和 `backend/lumacarve_runtime/`（执行策略）；后续按职责将业务再拆分到 services/storage/adapters。
 - 当前 `LumaCarveData/model`、`assets`、`outputs`、`jobs.sqlite3` 仍按现有代码使用。**不会仅因为文档出现新目录就擅自迁移用户数据**。
