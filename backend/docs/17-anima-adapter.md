@@ -56,3 +56,6 @@ CPU 单元测试通过可证明工作流转换、加载生命周期和保存行�
 ## 测试覆盖
 
 `backend/tests/test_anima.py` 使用可控的 Mock Pipeline（真正写出 PNG 文件）验证：本地目录完整性、来源隔离、Graph 参数编译、连续生成复用同一模型、两个 LoRA 与清空堆栈、取消不发布文件，以及 API → SQLite → Adapter → PNG 输出端到端链路。该测试**不加载真实权重，不能替代 GPU 烟雾测试**。
+
+
+真实输出可由 `GET /api/v1/outputs/{output_id}` 访问。源码与限制见 [18-output-images.md](18-output-images.md)，该 API 不对外暴露本地绝对路径。

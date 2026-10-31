@@ -12,6 +12,7 @@ from .config import Settings
 from lumacarve_runtime.rust_bridge import scheduler_backend
 from .model_downloads import ModelDownloadManager
 from .routers.downloads import router as downloads_router
+from .routers.outputs import router as outputs_router
 from .jobs import DisabledInference, JobQueue, JobStore
 
 def make_inference_adapter(settings: Settings):
@@ -53,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api.include_router(assets_router)
     api.include_router(jobs_router)
     api.include_router(downloads_router)
+    api.include_router(outputs_router)
 
     # CORS is not CSRF protection. Reject disallowed Origins even on simple
     # multipart POST requests, before routes read or persist any data.

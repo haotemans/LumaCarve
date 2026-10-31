@@ -211,3 +211,17 @@ source = ["scheduler/src/incremental.rs"]
 doc = "scheduler/docs/incremental.md"
 tests = ["scheduler/tests/incremental.rs"]
 verification = "rust-tests"
+
+[[module]]
+id = "server.anima"
+source = ["backend/lumacarve_server/adapters/anima.py"]
+doc = "backend/docs/17-anima-adapter.md"
+tests = ["backend/tests/test_anima.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.outputs"
+source = ["backend/lumacarve_server/routers/outputs.py"]
+doc = "backend/docs/18-output-images.md"
+tests = ["backend/tests/test_outputs.py"]
+verification = "backend-tests"

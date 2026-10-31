@@ -1,6 +1,6 @@
 # LumaCarve · 后端模块目录
 
-> 本阶段提供**可启动的本地 API 与可测试的调度基础**，不是已经能够生成图片或训练 LoRA 的完整后端。真实模型的 PyTorch/CUDA 适配器尚未连接；`POST /api/v1/jobs` 会明确返回 **503**，不会制造假图片、假 GPU 数值或假完成任务。
+> 本阶段已接入可选 Anima Base 1.0 Diffusers 本地推理 Adapter 与输出 API。**没有真实 GPU 生成实测结果**；默认仍禁用 GPU 推理，用户需明确启用并安装完整模型。LoRA 训练及其他模型仍未接入。
 
 ## 一键创建统一 .venv（Windows PowerShell）
 
@@ -41,6 +41,8 @@ cd LumaCarve\backend
 | 本地 GPU worker 唯一所有权 | `lumacarve_server/instance_lock.py` | [16-single-instance-lock.md](docs/16-single-instance-lock.md) | `test_instance_lock.py` |
 | Rust/SQLite 调度桥接 | `lumacarve_runtime/queue_bridge.py` | [15-rust-queue-bridge.md](docs/15-rust-queue-bridge.md) | `test_queue_bridge.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
+| Anima Base 1.0 推理 | `lumacarve_server/adapters/anima.py` | [17-anima-adapter.md](docs/17-anima-adapter.md) | `test_anima.py` |
+| 输出图片 API | `lumacarve_server/routers/outputs.py` | [18-output-images.md](docs/18-output-images.md) | `test_outputs.py` |
 | Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
 | Python 包与路由打包 | `pyproject.toml` | [13-package-layout.md](docs/13-package-layout.md) | `test_packaging.py` |
 | 一键环境安装 | `../tools/setup.py` + `pyproject.toml` | [08-dependencies.md](docs/08-dependencies.md), [09-install.md](docs/09-install.md) | `test_installer.py` |
@@ -70,13 +72,14 @@ Rust 代码位于 [`scheduler/`](../scheduler/README.md)。它包含 DAG 计划�
 - `POST /api/v1/assets`、`GET /api/v1/assets/{id}`：可用。校验并存取 PNG/JPEG/WebP。
 - `POST /api/v1/workflows/validate`：可用。校验前端 Graph JSON 结构、参数和类型。
 - `GET /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`POST /api/v1/jobs/{id}/cancel`：可用。持久化任务状态。
-- `POST /api/v1/jobs`：API 可调用，但未配置真实推理适配器时返回 503。
+- `POST /api/v1/jobs`：默认返回 503；显式启用完整 Anima 模型后可创建真实推理任务，必须在支持的 GPU 上实测。
+- `GET /api/v1/outputs/{output_id}`：读取确实已生成的 PNG 文件，未生成时返回 404。
 - `GET /api/v1/downloads/catalog`：返回国内/国际模型仓库目录。
 - `POST /api/v1/downloads`、`GET /api/v1/downloads/{id}`：显式启用后下载 ModelScope/Hugging Face 模型，查询下载状态；不自动载入 GPU。
 
 ## 接下来
 
-1. **模型适配器**：验证 Qwen-Image-2.1 实际推理 API、模型子组件、加载精度与编辑能力；不依赖前端静态能力预设做运行时承诺。
+1. **Anima GPU 烟雾测试**：实机验证 1024×1024、BF16、CUDA/卸载和多 LoRA；然后再做 Qwen-Image-2.1 生成与编辑适配。
 2. **真实图像执行器**：用 Graph 编译结果进行文本编码、扩散、VAE 解码与图片保存，接入安全取消机制。
 3. **LoRA Stack**：验证模型家族的可用 LoRA 格式，按兼容性与显存预算加载，支持多个 LoRA 共享基础模型。
 4. **性能验证**：测量实际峰值 GPU 显存、系统内存、首张生成时间和连续生成速度后，才选择全量驻留、整组件卸载或量化。
