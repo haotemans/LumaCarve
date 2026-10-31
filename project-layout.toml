@@ -1,0 +1,136 @@
+# LumaCarve source -> documentation -> verification ownership manifest.
+# All paths are relative to the repository root; only tracked source paths belong here.
+schema_version = 1
+
+[[module]]
+id = "server.config"
+source = ["backend/lumacarve_server/config.py"]
+doc = "backend/docs/01-config.md"
+tests = ["backend/tests/test_server.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.http"
+source = ["backend/lumacarve_server/app.py"]
+doc = "backend/docs/02-app.md"
+tests = ["backend/tests/test_server.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.workflow"
+source = ["backend/lumacarve_server/workflows.py", "backend/lumacarve_server/routers/workflows.py"]
+doc = "backend/docs/03-workflow.md"
+tests = ["backend/tests/test_workflows.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.models"
+source = ["backend/lumacarve_server/models.py", "backend/lumacarve_server/routers/models.py"]
+doc = "backend/docs/04-model-registry.md"
+tests = ["backend/tests/test_models.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.assets"
+source = ["backend/lumacarve_server/assets.py", "backend/lumacarve_server/routers/assets.py"]
+doc = "backend/docs/05-assets.md"
+tests = ["backend/tests/test_assets.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.jobs"
+source = ["backend/lumacarve_server/jobs.py", "backend/lumacarve_server/routers/jobs.py"]
+doc = "backend/docs/06-job-queue.md"
+tests = ["backend/tests/test_jobs.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "runtime.graph"
+source = ["backend/lumacarve_runtime/graph.py"]
+doc = "backend/docs/07-runtime.md"
+tests = ["backend/tests/test_runtime.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "runtime.budget"
+source = ["backend/lumacarve_runtime/budget.py"]
+doc = "backend/docs/07-runtime.md"
+tests = ["backend/tests/test_runtime.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "runtime.residency"
+source = ["backend/lumacarve_runtime/residency.py"]
+doc = "backend/docs/07-runtime.md"
+tests = ["backend/tests/test_runtime.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "runtime.executor"
+source = ["backend/lumacarve_runtime/executor.py"]
+doc = "backend/docs/07-runtime.md"
+tests = ["backend/tests/test_runtime.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "tools.setup"
+source = ["tools/setup.py"]
+doc = "backend/docs/09-install.md"
+tests = ["backend/tests/test_installer.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "runtime.attention"
+source = ["backend/lumacarve_runtime/attention.py"]
+doc = "backend/docs/10-attention.md"
+tests = ["backend/tests/test_attention.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.download_sources"
+source = ["backend/lumacarve_server/download_sources.py"]
+doc = "backend/docs/11-download-sources.md"
+tests = ["backend/tests/test_installer.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.model_downloads"
+source = ["backend/lumacarve_server/model_downloads.py", "backend/lumacarve_server/routers/downloads.py"]
+doc = "backend/docs/12-modelscope-downloads.md"
+tests = ["backend/tests/test_downloads.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "frontend.shell"
+source = ["frontend/src/App.tsx", "frontend/src/main.tsx"]
+doc = "frontend/README.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.image_studio.page"
+source = ["frontend/src/features/image-studio/ImageStudioPage.tsx"]
+doc = "frontend/src/features/image-studio/docs/ImageStudioPage.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.image_studio.workflow"
+source = ["frontend/src/features/image-studio/workflow.ts"]
+doc = "frontend/src/features/image-studio/docs/workflow.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.image_studio.graph"
+source = ["frontend/src/features/image-studio/GraphCanvas.tsx"]
+doc = "frontend/src/features/image-studio/docs/GraphCanvas.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.image_studio.styles"
+source = ["frontend/src/features/image-studio/image-studio.css"]
+doc = "frontend/src/features/image-studio/docs/image-studio-css.md"
+tests = []
+verification = "frontend-build"

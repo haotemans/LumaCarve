@@ -1,0 +1,28 @@
+name: Project module layout
+on:
+  push:
+    paths:
+      - 'project-layout.toml'
+      - 'docs/**'
+      - 'tools/**'
+      - 'frontend/src/**'
+      - 'backend/**'
+      - '.github/workflows/layout-ci.yml'
+  pull_request:
+    paths:
+      - 'project-layout.toml'
+      - 'docs/**'
+      - 'tools/**'
+      - 'frontend/src/**'
+      - 'backend/**'
+      - '.github/workflows/layout-ci.yml'
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python tools/check_layout.py
+      - run: python -m unittest discover -s tools/tests -v
