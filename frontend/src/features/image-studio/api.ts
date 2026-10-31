@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /** Local image generation API. No mock job completion or synthesized images. */
 import type { StudioWorkflow } from './workflow';
 
