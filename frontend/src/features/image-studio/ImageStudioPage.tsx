@@ -7,17 +7,17 @@ import {
   MousePointer2, PenTool, Plus, RotateCcw, Settings2, Shuffle, SlidersHorizontal,
   Sparkles, Trash2, Upload, Workflow, X, Zap,
 } from 'lucide-react';
-import Artwork from '../components/Artwork';
-import type { SharedProps } from '../App';
+import Artwork from '../../components/Artwork';
+import type { SharedProps } from '../../App';
 import {
   appendGraphNode, connectGraphNodes, fieldRegistry, getField, getModelId,
   getStudioModel, kinds, makeWorkflow, nodeTitle, removeGraphNode, studioModels,
   toggleFieldExposure, updateNodeValue, validateImport, visibleFields,
-} from '../studio/workflow';
+} from './workflow';
 import type {
   FieldId, FieldValue, LoRAEntry, NodeKind, StudioIntent, StudioNode, StudioWorkflow,
-} from '../studio/workflow';
-const GraphCanvas = lazy(() => import('../studio/GraphCanvas'));
+} from './workflow';
+const GraphCanvas = lazy(() => import('./GraphCanvas'));
 
 type StudioView = 'parameters' | 'graph';
 type RefImage = { id:string; name:string; url:string; width:number; height:number; bytes:number; file:File };

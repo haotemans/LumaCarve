@@ -4,7 +4,7 @@ import App from './App';
 import './styles.css';
 import './optical.css';
 import './layout-refresh.css';
-import './image-studio.css';
+import './features/image-studio/image-studio.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

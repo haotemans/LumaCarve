@@ -14,7 +14,7 @@ import {
 import {
   TrainingPage,
 } from './pages/OpticalStudio';
-import ImageStudioPage from './pages/ImageStudioPage';
+import ImageStudioPage from './features/image-studio/ImageStudioPage';
 import GalleryPage from './pages/GalleryPage';
 import DatasetsPage from './pages/DatasetsPage';
 
