@@ -54,6 +54,14 @@ class LayoutCheckerTests(unittest.TestCase):
             config["module"][0]["source"] = ["../outside.py"]
             self.assertTrue(any("escapes repository" in s for s in checker.check_layout(root, config)))
 
+    def test_rust_source_requires_manifest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, config = self.sample(folder)
+            directory = root / "scheduler/src"
+            directory.mkdir(parents=True)
+            (directory / "new_policy.rs").write_text("// fixture\\n", encoding="utf-8")
+            self.assertTrue(any("Unregistered Rust source" in s for s in checker.check_layout(root, config)))
+
     def test_new_python_code_requires_manifest(self):
         with tempfile.TemporaryDirectory() as folder:
             root, config = self.sample(folder)

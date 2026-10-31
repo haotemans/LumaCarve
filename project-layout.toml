@@ -141,3 +141,52 @@ source = ["backend/pyproject.toml"]
 doc = "backend/docs/13-package-layout.md"
 tests = ["backend/tests/test_packaging.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "runtime.rust_bridge"
+source = ["backend/lumacarve_runtime/rust_bridge.py"]
+doc = "backend/docs/14-rust-graph-bridge.md"
+tests = ["backend/tests/test_rust_bridge.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "rust.scheduler.build"
+source = ["scheduler/Cargo.toml", "scheduler/src/lib.rs"]
+doc = "scheduler/docs/README.md"
+tests = ["scheduler/tests/core.rs"]
+verification = "rust-tests"
+
+[[module]]
+id = "rust.scheduler.graph"
+source = ["scheduler/src/graph.rs"]
+doc = "scheduler/docs/graph.md"
+tests = ["scheduler/tests/core.rs"]
+verification = "rust-tests"
+
+[[module]]
+id = "rust.scheduler.cache"
+source = ["scheduler/src/cache.rs"]
+doc = "scheduler/docs/cache.md"
+tests = ["scheduler/tests/core.rs"]
+verification = "rust-tests"
+
+[[module]]
+id = "rust.scheduler.queue"
+source = ["scheduler/src/queue.rs"]
+doc = "scheduler/docs/queue.md"
+tests = ["scheduler/tests/core.rs"]
+verification = "rust-tests"
+
+[[module]]
+id = "rust.scheduler.resources"
+source = ["scheduler/src/resources.rs"]
+doc = "scheduler/docs/resources.md"
+tests = ["scheduler/tests/core.rs"]
+verification = "rust-tests"
+
+[[module]]
+id = "rust.scheduler.python"
+source = ["scheduler/src/python.rs", "scheduler/pyproject.toml"]
+doc = "scheduler/docs/python-bridge.md"
+tests = ["scheduler/tests/core.rs", "backend/tests/test_rust_bridge.py"]
+verification = "rust-tests"

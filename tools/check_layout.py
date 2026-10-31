@@ -22,7 +22,7 @@ def check_layout(root: Path, config: dict) -> list[str]:
         return errors + ["No modules declared in project-layout.toml"]
     owned: dict[str, str] = {}
     seen_ids: set[str] = set()
-    expected_checks = {"frontend-build", "backend-tests"}
+    expected_checks = {"frontend-build", "backend-tests", "rust-tests"}
     for entry in entries:
         if not isinstance(entry, dict):
             errors.append("Manifest module must be a table")
@@ -43,8 +43,8 @@ def check_layout(root: Path, config: dict) -> list[str]:
             continue
         if not isinstance(docs, str) or not docs.endswith(".md"):
             errors.append(f"{mid}: one Markdown document path is required")
-        if not isinstance(tests, list) or (verify == "backend-tests" and not tests):
-            errors.append(f"{mid}: backend modules require test paths")
+        if not isinstance(tests, list) or (verify in ("backend-tests", "rust-tests") and not tests):
+            errors.append(f"{mid}: backend and Rust modules require test paths")
             tests = []
         for role, paths in (("source", sources), ("doc", [docs]), ("test", tests)):
             for raw in paths:
@@ -66,6 +66,10 @@ def check_layout(root: Path, config: dict) -> list[str]:
                         owned[raw] = mid
         if verify == "backend-tests" and any(not isinstance(t, str) or not t.startswith("backend/tests/") for t in tests):
             errors.append(f"{mid}: backend test path must reside in backend/tests/")
+        if verify == "rust-tests" and not any(
+            isinstance(t, str) and t.startswith("scheduler/tests/") for t in tests
+        ):
+            errors.append(f"{mid}: Rust module requires scheduler/tests/ coverage")
     # Prevent backend modules or newly added Image Studio files from silently
     # escaping the source/document/test ownership index.
     for folder in ("backend/lumacarve_server", "backend/lumacarve_runtime"):
@@ -79,6 +83,12 @@ def check_layout(root: Path, config: dict) -> list[str]:
             name = file.relative_to(root).as_posix()
             if name not in owned:
                 errors.append(f"Unregistered backend source: {name}")
+    rust_src = root / "scheduler/src"
+    if rust_src.exists():
+        for file in rust_src.rglob("*.rs"):
+            name = file.relative_to(root).as_posix()
+            if name not in owned:
+                errors.append(f"Unregistered Rust source: {name}")
     studio = root / "frontend/src/features/image-studio"
     if studio.exists():
         for file in studio.iterdir():
