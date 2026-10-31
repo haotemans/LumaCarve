@@ -117,6 +117,8 @@ def compile_anima_request(workflow: dict[str, Any], inputs: dict[str, Any]) -> A
 class AnimaAdapter:
     """Lazy single-model adapter. A JobQueue serializes calls to run()."""
 
+    model_id = MODEL_ID
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self._pipeline: Any | None = None
@@ -152,7 +154,7 @@ class AnimaAdapter:
         return pipe, torch
 
     def _lora_path(self, name: str) -> Path:
-        if not name or Path(name).name != name or Path(name).suffix.lower() != ".safetensors":
+        if not name or "/" in name or "\\" in name or Path(name).name != name or Path(name).suffix.lower() != ".safetensors":
             raise ValueError("LoRA name must be a .safetensors filename without directories")
         root = (self.settings.models_dir / "lora").resolve()
         candidate = (root / name)
