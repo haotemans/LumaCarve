@@ -38,6 +38,7 @@ cd LumaCarve\backend
 | Graph 工作流校验 | `lumacarve_server/workflows.py` + `routers/workflows.py` | [03-workflow.md](docs/03-workflow.md) | `test_workflows.py` |
 | 模型索引 | `lumacarve_server/models.py` + `routers/models.py` | [04-model-registry.md](docs/04-model-registry.md) | `test_models.py` |
 | 图片上传与读取 | `lumacarve_server/assets.py` + `routers/assets.py` | [05-assets.md](docs/05-assets.md) | `test_assets.py` |
+| Rust/SQLite 调度桥接 | `lumacarve_runtime/queue_bridge.py` | [15-rust-queue-bridge.md](docs/15-rust-queue-bridge.md) | `test_queue_bridge.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
 | Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
 | Python 包与路由打包 | `pyproject.toml` | [13-package-layout.md](docs/13-package-layout.md) | `test_packaging.py` |

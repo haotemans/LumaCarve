@@ -11,7 +11,9 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
+
+from lumacarve_runtime.queue_bridge import PRIORITIES, choose_pending_job
 
 STATUS = ("queued", "running", "completed", "failed", "cancelled")
 
@@ -61,6 +63,19 @@ class JobStore:
                     updated_at REAL NOT NULL
                 )
             """)
+            # Upgrade databases from before priority-based scheduling.
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(jobs)")}
+            if "priority" not in columns:
+                connection.execute("ALTER TABLE jobs ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'")
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS scheduler_state (
+                    key TEXT PRIMARY KEY,
+                    value INTEGER NOT NULL
+                )
+            """)
+            connection.execute(
+                "INSERT OR IGNORE INTO scheduler_state(key,value) VALUES ('interactive_streak',0)"
+            )
             # Restarted process cannot magically resume in-flight CUDA tasks.
             connection.execute(
                 "UPDATE jobs SET state='failed', error='server_restarted', updated_at=? WHERE state='running'",
@@ -72,27 +87,30 @@ class JobStore:
         connection.row_factory = sqlite3.Row
         return connection
 
-    def create(self, workflow: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    def create(self, workflow: dict[str, Any], inputs: dict[str, Any],
+               priority: str = "normal") -> dict[str, Any]:
+        if priority not in PRIORITIES:
+            raise ValueError("Unsupported job priority")
         job_id = uuid.uuid4().hex
         now = time.time()
         with self._lock, self._connect() as connection:
             connection.execute(
-                "INSERT INTO jobs (id,state,workflow,inputs,created_at,updated_at) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO jobs (id,state,workflow,inputs,priority,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
                 (job_id, "queued", json.dumps(workflow, ensure_ascii=False),
-                 json.dumps(inputs, ensure_ascii=False), now, now),
+                 json.dumps(inputs, ensure_ascii=False), priority, now, now),
             )
         return self.get(job_id)
 
     def get(self, job_id: str) -> dict[str, Any]:
         with self._lock, self._connect() as connection:
             row = connection.execute(
-                "SELECT id,state,result,error,created_at,updated_at FROM jobs WHERE id=?",
+                "SELECT id,state,priority,result,error,created_at,updated_at FROM jobs WHERE id=?",
                 (job_id,),
             ).fetchone()
         if row is None:
             raise JobNotFound(job_id)
         return {
-            "id": row["id"], "state": row["state"],
+            "id": row["id"], "state": row["state"], "priority": row["priority"],
             "result": json.loads(row["result"]) if row["result"] else None,
             "error": row["error"], "created_at": row["created_at"],
             "updated_at": row["updated_at"],
@@ -110,6 +128,46 @@ class JobStore:
                 "SELECT id FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()]
         return [self.get(job_id) for job_id in ids]
+
+    def claim_next(self) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+        """Atomically claim one task from the SQLite queue.
+
+        SQLite owns both priority history and task state. Rust/queue_bridge only
+        chooses an ID from this transaction's consistent candidate snapshot.
+        """
+        with self._lock, self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if connection.execute(
+                "SELECT 1 FROM jobs WHERE state='running' LIMIT 1"
+            ).fetchone():
+                return None
+            rows = connection.execute(
+                "SELECT rowid AS sequence,id,priority,workflow,inputs "
+                "FROM jobs WHERE state='queued' ORDER BY rowid"
+            ).fetchall()
+            streak = connection.execute(
+                "SELECT value FROM scheduler_state WHERE key='interactive_streak'"
+            ).fetchone()[0]
+            choice = choose_pending_job(
+                [{"id": row["id"], "priority": row["priority"],
+                  "sequence": row["sequence"]} for row in rows], streak
+            )
+            if choice is None:
+                return None
+            job_id, next_streak = choice
+            selected = next(row for row in rows if row["id"] == job_id)
+            updated = connection.execute(
+                "UPDATE jobs SET state='running',updated_at=? "
+                "WHERE id=? AND state='queued'",
+                (time.time(), job_id),
+            ).rowcount
+            if updated != 1:
+                raise RuntimeError("SQLite claim changed unexpected row count")
+            connection.execute(
+                "UPDATE scheduler_state SET value=? WHERE key='interactive_streak'",
+                (next_streak,),
+            )
+            return (job_id, json.loads(selected["workflow"]), json.loads(selected["inputs"]))
 
     def transition(self, job_id: str, current: str, target: str, *, result: dict | None = None, error: str | None = None) -> bool:
         if target not in STATUS:
@@ -148,13 +206,13 @@ class JobQueue:
         if self._thread is not None:
             self._thread.join(timeout=5)
 
-    def submit(self, workflow: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    def submit(self, workflow: dict[str, Any], inputs: dict[str, Any], priority: str = "normal") -> dict[str, Any]:
         with self._lock:
             if not self.adapter.ready:
                 raise EngineUnavailable("GPU inference adapter is not configured; job was not enqueued")
             if self.store.count_active() >= self.max_active:
                 raise QueueFull("Maximum number of active tasks reached")
-            job = self.store.create(workflow, inputs)
+            job = self.store.create(workflow, inputs, priority=priority)
             self._wakeup.set()
             return job
 
@@ -168,11 +226,7 @@ class JobQueue:
             return self.store.get(job_id)
 
     def _next(self):
-        with self.store._lock, self.store._connect() as connection:
-            row = connection.execute(
-                "SELECT id,workflow,inputs FROM jobs WHERE state='queued' ORDER BY created_at ASC LIMIT 1"
-            ).fetchone()
-            return None if row is None else (row["id"], json.loads(row["workflow"]), json.loads(row["inputs"]))
+        return self.store.claim_next()
 
     def _run(self) -> None:
         while not self._shutdown.is_set():
@@ -182,13 +236,15 @@ class JobQueue:
             if not self.adapter.ready:
                 continue
             while not self._shutdown.is_set() and self.adapter.ready:
-                task = self._next()
+                # Keep cancellation and the queued-to-running claim atomic
+                # with respect to this process's API cancellation requests.
+                with self._lock:
+                    task = self._next()
+                    if task is not None:
+                        cancel = self._cancel.setdefault(task[0], threading.Event())
                 if task is None:
                     break
                 job_id, workflow, inputs = task
-                if not self.store.transition(job_id, "queued", "running"):
-                    continue
-                cancel = self._cancel.setdefault(job_id, threading.Event())
                 try:
                     result = self.adapter.run(workflow, inputs, cancel)
                     if cancel.is_set():

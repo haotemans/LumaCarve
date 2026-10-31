@@ -1,5 +1,6 @@
 """Job API: validation first, then single-GPU-worker admission."""
 from fastapi import APIRouter, HTTPException, Request
+from typing import Literal
 from pydantic import BaseModel, Field
 
 from ..assets import AssetError, locate_asset
@@ -13,6 +14,7 @@ class JobRequest(BaseModel):
     workflow: dict = Field(...)
     asset_ids: list[str] = Field(default_factory=list, max_length=10)
     mask_asset_id: str | None = None
+    priority: Literal['interactive', 'normal', 'background'] = 'interactive'
 
 
 @router.post("", status_code=202)
@@ -36,7 +38,8 @@ def submit(request: Request, payload: JobRequest):
             raise HTTPException(422, detail="Mask must be a PNG asset")
     try:
         return request.app.state.job_queue.submit(
-            payload.workflow, {"asset_ids": payload.asset_ids, "mask_asset_id": payload.mask_asset_id}
+            payload.workflow, {"asset_ids": payload.asset_ids, "mask_asset_id": payload.mask_asset_id},
+            priority=payload.priority,
         )
     except EngineUnavailable as exc:
         raise HTTPException(503, detail=str(exc)) from exc

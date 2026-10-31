@@ -1,4 +1,5 @@
 import tempfile
+import sqlite3
 import threading
 import time
 import unittest
@@ -54,6 +55,49 @@ class JobsTests(unittest.TestCase):
                 self.assertEqual(store.get(pending["id"])["state"], "queued")
             finally:
                 queue.close()
+
+    def test_claim_priority_is_fair_across_reopened_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "queue.sqlite3"
+            store = JobStore(path)
+            background = store.create(sample(), {}, priority="background")["id"]
+            interactive = [store.create(sample(), {}, priority="interactive")["id"] for _ in range(4)]
+            store.create(sample(), {}, priority="normal")
+            for expected in interactive[:3]:
+                job_id, _, _ = store.claim_next()
+                self.assertEqual(job_id, expected)
+                self.assertTrue(store.transition(job_id, "running", "completed"))
+            store = JobStore(path)
+            job_id, _, _ = store.claim_next()
+            self.assertEqual(job_id, background)
+            self.assertTrue(store.transition(job_id, "running", "completed"))
+            self.assertEqual(store.claim_next()[0], interactive[3])
+
+    def test_sqlite_atomic_claim_prevents_two_workers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "queue.sqlite3"
+            store1, store2 = JobStore(path), JobStore(path)
+            first = store1.create(sample(), {})
+            second = store1.create(sample(), {})
+            self.assertEqual(store1.claim_next()[0], first["id"])
+            self.assertIsNone(store2.claim_next())
+            store1.transition(first["id"], "running", "completed")
+            self.assertEqual(store2.claim_next()[0], second["id"])
+
+    def test_migrate_old_sqlite_without_priority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "queue.sqlite3"
+            with sqlite3.connect(path) as conn:
+                conn.execute("""CREATE TABLE jobs (
+                    id TEXT PRIMARY KEY, state TEXT NOT NULL,
+                    workflow TEXT NOT NULL, inputs TEXT NOT NULL,
+                    result TEXT, error TEXT,
+                    created_at REAL NOT NULL, updated_at REAL NOT NULL
+                )""")
+            store = JobStore(path)
+            job = store.create(sample(), {})
+            self.assertEqual(store.get(job["id"])["priority"], "normal")
+            self.assertEqual(store.claim_next()[0], job["id"])
 
     def test_restarts_fail_inflight_records(self):
         with tempfile.TemporaryDirectory() as tmp:
