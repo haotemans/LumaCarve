@@ -51,3 +51,8 @@ py -3.11 -m unittest discover -s backend/tests -p test_anima.py -v
 ```
 
 CPU 单元测试通过可证明工作流转换、加载生命周期和保存行为，不证明任何显卡已经实际生成图片。Diffusers ModularPipeline Anima 支持依赖现行版本（建议先固定已验证的 0.40+），不能使用过旧的 Diffusers 自动安装后宣称可用。
+
+
+## 测试覆盖
+
+`backend/tests/test_anima.py` 使用可控的 Mock Pipeline（真正写出 PNG 文件）验证：本地目录完整性、来源隔离、Graph 参数编译、连续生成复用同一模型、两个 LoRA 与清空堆栈、取消不发布文件，以及 API → SQLite → Adapter → PNG 输出端到端链路。该测试**不加载真实权重，不能替代 GPU 烟雾测试**。
