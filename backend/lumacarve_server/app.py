@@ -78,8 +78,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "mode": "local_only",
             "inference_offload": settings.inference_offload,
             "graph_scheduler": scheduler_backend(),
-            "queue_scheduler": app.state.job_queue.queue_backend,
-            "queue_scheduler_error": app.state.job_queue.fatal_error,
+            "queue_scheduler": api.state.job_queue.queue_backend,
+            "queue_scheduler_error": api.state.job_queue.fatal_error,
         }
 
     return api

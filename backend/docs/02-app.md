@@ -19,3 +19,6 @@ py -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 请求由 Host 白名单和 Origin 白名单限制。CORS + Origin 检查仅是本地演示的基本安全控制，并非互联网部署的身份鉴权。
 
 **状态：** API 基础启动已实现；模型列表、上传、工作流和生成任务在后续按模块增量接入。
+
+
+`GET /api/v1/runtime` 另提供 `queue_scheduler`（实际 Rust/Python 调度后端）和 `queue_scheduler_error`（后台队列故障；正常为 null）。这个状态读取 **当前 FastAPI 实例** 的队列，而不是模块级全局应用，以保证测试和多个隔离实例的数据正确。
