@@ -22,3 +22,15 @@ jobs:
         run: |
           python -m pip wheel --no-deps --wheel-dir /tmp/lumacarve-wheels ./backend
           python -c "from pathlib import Path; import zipfile; p=next(Path('/tmp/lumacarve-wheels').glob('lumacarve_backend-*.whl')); z=zipfile.ZipFile(p); assert all(f in z.namelist() for f in ('lumacarve_server/routers/downloads.py','lumacarve_server/routers/workflows.py','lumacarve_runtime/residency.py')); print('Wheel includes server routers and runtime')"
+
+  windows-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install lightweight backend test dependencies
+        run: python -m pip install -e "./backend[dev]"
+      - name: Verify Windows SQLite locking, API and scheduler fallback
+        run: python -m unittest discover -s backend/tests -v

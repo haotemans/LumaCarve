@@ -12,4 +12,6 @@ SQLite 的 `BEGIN IMMEDIATE` 能确保**领取任务是原子的**，但不足�
 - 只有拿到独占所有权后才可以把旧的 `running` 标记 `failed/server_restarted`。单纯打开 `JobStore` 不再重置别的进程正在执行的任务。
 - Worker 完成退出后才释放所有权。如果线程仍在执行，关闭过程拒绝提前解锁，避免新的服务错误地并发加载模型。
 
+Windows 与 Linux 都由独立 GitHub Actions 后端测试验证，尤其检查 Windows 的 `msvcrt.locking` 是否拒绝第二个进程/句柄。Rust 扩展不需要作为本测试的前置依赖。
+
 **局限**：这是一台本地机器、共享同一数据目录的单 GPU 队列锁。未来多 GPU 任务要按设备 ID 单独锁定或使用全局资源仲裁；本地锁不是面向网络分布式任务的租约协议。HTTP 默认仍只监听 127.0.0.1。
