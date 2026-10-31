@@ -8,6 +8,7 @@
 | `src/cache.rs` | [docs/cache.md](docs/cache.md) | 输入签名与缓存失效 | `tests/core.rs` |
 | `src/queue.rs` | [docs/queue.md](docs/queue.md) | 一张 GPU 上的就绪任务优先级和取消状态机 | `tests/core.rs` |
 | `src/resources.rs` | [docs/resources.md](docs/resources.md) | GPU/RAM 预算租约 | `tests/core.rs` |
+| `src/python.rs` + `pyproject.toml` | [docs/python-bridge.md](docs/python-bridge.md) | PyO3 Graph、队列、资源租约绑定（可选） | `backend/tests/test_rust_bridge.py` + wheel smoke test |
 | `src/lib.rs` + `Cargo.toml` | [docs/README.md](docs/README.md) | 模块导出与编译特性 | `tests/core.rs` |
 
 从项目根目录运行：
@@ -15,5 +16,7 @@
 ```bash
 cargo test --manifest-path scheduler/Cargo.toml --all-targets
 ```
+
+PyO3 wheel 可通过 maturin 编译并安装进项目**同一个 `.venv`**；已安装时 Python Graph 校验优先使用 Rust，缺失时使用 Python 计划编译。Rust 队列及资源仲裁尚未接管执行器；详见 [桥接文档](docs/python-bridge.md)。
 
 **不要在 Rust 中执行扩散模型或管理 CUDA Tensor**。Python/PyTorch 仍负责真实权重加载、内存同步和 LoRA 训练。即使 Rust 编译成功，实际生图 API 仍需适配器；`POST /api/v1/jobs` 未配置推理引擎时返回 503。集成方案见 [ADR-0002](../docs/architecture/ADR-0002-rust-scheduler-comfyui-reference.md)。

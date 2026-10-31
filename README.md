@@ -29,6 +29,10 @@ Technical choices: **React + TypeScript + Vite + React Flow** (UI); **Python 3.1
 
 每个模型系列将采用专门的模型适配器；组件结构、权重格式及加载限制须逐一验证。
 
+## ComfyUI-inspired Rust scheduling core
+
+Graph scheduling and cache-policy metadata now have an independent Rust crate in [scheduler/](scheduler/README.md), plus an optional [PyO3 bridge](backend/docs/14-rust-graph-bridge.md) installed into the same root `.venv`. Design references: [ADR-0002](docs/architecture/ADR-0002-rust-scheduler-comfyui-reference.md). We reference ComfyUI's architecture patterns (lazy dependencies, cache signatures, resource decisions) but do not copy GPL code. Actual GPU model execution and the Python task queue are **not yet replaced by Rust**.
+
 ## Core design goals
 
 ### Training and precision

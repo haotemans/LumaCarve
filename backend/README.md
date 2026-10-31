@@ -56,6 +56,10 @@ py -m unittest discover -s tests -v
 
 GitHub Actions 在 `.github/workflows/backend-ci.yml` 中执行 Python 3.11 测试；不需要 GPU。
 
+## Rust 调度内核（元数据策略已实现，GPU 执行未接通）
+
+Rust 代码位于 [`scheduler/`](../scheduler/README.md)。它包含 DAG 计划、节点缓存签名、单 GPU 优先级队列、内存预算租约和可选 PyO3 扩展。通过 maturin 安装到同一个 `.venv` 后，Python Graph 编译优先调用 Rust；没有扩展则使用 Python 实现。详细说明见 [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md)。
+
 ## 接口状态
 
 - `GET /api/v1/health`：可用。仅表示本地 API 存活。

@@ -27,4 +27,5 @@
 
 - 图像工作室已迁入 `frontend/src/features/image-studio/`，Graph、参数页面和样式同处该模块。其它旧页面暂留 `frontend/src/pages/`，后续逐个迁移。
 - 已有 `backend/lumacarve_server/`（HTTP API 与业务）和 `backend/lumacarve_runtime/`（执行策略）；后续按职责将业务再拆分到 services/storage/adapters。
+- Rust `scheduler/` 已实现 DAG、签名、优先级队列与资源租约元数据策略，并提供可选 PyO3 绑定。当前只有 Graph 编译集成到 Python 的可选优选路径；执行队列仍由 Python 控制，**Rust 尚未接管实际 GPU 运行**。
 - 当前 `LumaCarveData/model`、`assets`、`outputs`、`jobs.sqlite3` 仍按现有代码使用。**不会仅因为文档出现新目录就擅自迁移用户数据**。
