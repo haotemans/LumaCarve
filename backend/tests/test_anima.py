@@ -77,7 +77,10 @@ def install_dummy_snapshot(settings, *, completed=True):
         "transformer", "vae", "text_encoder", "text_conditioner",
         "tokenizer", "t5_tokenizer", "scheduler",
     ):
-        (folder / component).mkdir(exist_ok=True)
+        component_dir = folder / component
+        component_dir.mkdir(exist_ok=True)
+        if component in ("transformer", "vae", "text_encoder", "text_conditioner"):
+            (component_dir / "model.safetensors").write_bytes(b"test-weight")
     if completed:
         (folder / ".lumacarve-complete").write_text("verified fixture", encoding="utf-8")
     return folder
