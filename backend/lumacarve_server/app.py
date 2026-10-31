@@ -9,6 +9,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import Settings
+from lumacarve_runtime.rust_bridge import scheduler_backend
 from .model_downloads import ModelDownloadManager
 from .routers.downloads import router as downloads_router
 from .jobs import DisabledInference, JobQueue, JobStore
@@ -76,6 +77,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "policy": "no_model_loaded_on_api_startup",
             "mode": "local_only",
             "inference_offload": settings.inference_offload,
+            "graph_scheduler": scheduler_backend(),
         }
 
     return api

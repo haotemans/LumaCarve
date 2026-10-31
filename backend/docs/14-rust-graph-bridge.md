@@ -12,3 +12,6 @@
 `scheduler/tests/core.rs` 检验 Rust 算法；`backend/tests/test_rust_bridge.py` 校验 Python 回退和真实 Rust 扩展的等价性。GitHub CI 会使用 maturin 在临时 `.venv` 中构建并安装 Rust 扩展后运行对照测试。
 
 **性能与内存边界：** 每次编译都通过小 JSON 传递 DAG 元数据，绝不会传图片或张量。后续模型执行和 JobQueue 真正切换 Rust 调度前还需要生命周期、重启与取消契约测试。
+
+
+`GET /api/v1/runtime` 现增加 `graph_scheduler` 字段，可能是 `rust` 或 `python-fallback`，用于明确是否真的加载 Rust 扩展。此字段与 `engine=not_connected` 分离，避免把成功安装 Rust 误认为 GPU 推理已就绪。

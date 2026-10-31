@@ -19,7 +19,9 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(result.status_code, 200)
                 self.assertEqual(result.json()["service"], "lumacarve")
                 self.assertTrue((root / "model" / "lora").is_dir())
-                self.assertEqual(client.get("/api/v1/runtime").json()["engine"], "not_connected")
+                runtime = client.get("/api/v1/runtime").json()
+                self.assertEqual(runtime["engine"], "not_connected")
+                self.assertIn(runtime["graph_scheduler"], ("rust", "python-fallback"))
 
     def test_local_origin_only(self):
         with tempfile.TemporaryDirectory() as temp:
