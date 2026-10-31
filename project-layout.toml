@@ -232,3 +232,10 @@ source = ["tools/anima_smoke.py"]
 doc = "backend/docs/19-anima-smoke.md"
 tests = ["backend/tests/test_anima_smoke.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "frontend.image_studio.api"
+source = ["frontend/src/features/image-studio/api.ts"]
+doc = "frontend/src/features/image-studio/docs/api.md"
+tests = []
+verification = "frontend-build"
