@@ -191,6 +191,11 @@ class ModelDownloadManager:
                         not (partial / name).is_dir() for name in expected[1:]
                     ):
                         raise ModelDownloadError("Anima ModularPipeline snapshot is incomplete")
+                    for component in ("transformer", "vae", "text_encoder", "text_conditioner"):
+                        if not any(
+                            p.is_file() for p in (partial / component).rglob("*.safetensors")
+                        ):
+                            raise ModelDownloadError(f"Anima weight files missing: {component}")
                 else:
                     required = [
                         "split_files/diffusion_models/anima-base-v1.0.safetensors",
