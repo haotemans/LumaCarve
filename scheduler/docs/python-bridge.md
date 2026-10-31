@@ -34,3 +34,6 @@
 - 禁止传输像素、Latent、Torch Tensor 或模型权重；JSON 只放图元信息和少量参数。
 
 **当前集成阶段：**真实 Graph 编译可选择 Rust；Rust 的队列及资源仲裁 Python 类型已经暴露，但 `JobQueue`/CUDA 尚未切换到 Rust 调度，防止迁移期双重执行。
+
+
+CI 在 Linux 与 Windows 上分别执行 Cargo 调度策略测试，并在两种系统上使用 maturin 构建对应的 PyO3 wheel、安装到虚拟环境、运行 Graph 回退/等价性测试。这是 Python 3.11 平台构建验证，不代表已对 CUDA 推理性能进行实测。
