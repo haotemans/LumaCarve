@@ -39,6 +39,7 @@ cd LumaCarve\backend
 | 模型索引 | `lumacarve_server/models.py` + `routers/models.py` | [04-model-registry.md](docs/04-model-registry.md) | `test_models.py` |
 | 图片上传与读取 | `lumacarve_server/assets.py` + `routers/assets.py` | [05-assets.md](docs/05-assets.md) | `test_assets.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
+| Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
 | Python 包与路由打包 | `pyproject.toml` | [13-package-layout.md](docs/13-package-layout.md) | `test_packaging.py` |
 | 一键环境安装 | `../tools/setup.py` + `pyproject.toml` | [08-dependencies.md](docs/08-dependencies.md), [09-install.md](docs/09-install.md) | `test_installer.py` |
 | 国内/国际下载源 | `lumacarve_server/download_sources.py` + `tools/setup.py` | [11-download-sources.md](docs/11-download-sources.md) | `test_installer.py` |

@@ -29,6 +29,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: python -m venv .venv
       - run: .venv/bin/python -m pip install --upgrade pip "maturin>=1.7,<2"
-      - run: .venv/bin/python -m maturin develop --manifest-path scheduler/Cargo.toml --features python
+      - run: .venv/bin/python -m maturin build --manifest-path scheduler/Cargo.toml --features python -i .venv/bin/python -o /tmp/lumacarve-wheels
+      - run: .venv/bin/python -m pip install /tmp/lumacarve-wheels/*.whl
       - run: .venv/bin/python -m pip install -e "./backend[dev]"
       - run: .venv/bin/python -m unittest discover -s backend/tests -p 'test_rust_bridge.py' -v

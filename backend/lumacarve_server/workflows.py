@@ -4,7 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from lumacarve_runtime import WorkflowNode, compile_workflow
+from lumacarve_runtime import WorkflowNode
+from lumacarve_runtime.rust_bridge import compile_preferred
 from lumacarve_runtime.graph import InvalidWorkflow
 
 FORMAT = "lumacarve.studio.workflow.v1"
@@ -156,7 +157,7 @@ def validate_workflow(data: dict[str, Any]) -> WorkflowSummary:
     if "prompt" not in kinds:
         _fail("Text condition is required")
     try:
-        plan = compile_workflow(
+        plan = compile_preferred(
             WorkflowNode(node_id=id, operation=by_id[id]["kind"], depends_on=tuple(parents[id]))
             for id in by_id
         )
