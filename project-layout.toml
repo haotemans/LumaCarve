@@ -225,3 +225,10 @@ source = ["backend/lumacarve_server/routers/outputs.py"]
 doc = "backend/docs/18-output-images.md"
 tests = ["backend/tests/test_outputs.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "tools.anima_smoke"
+source = ["tools/anima_smoke.py"]
+doc = "backend/docs/19-anima-smoke.md"
+tests = ["backend/tests/test_anima_smoke.py"]
+verification = "backend-tests"
