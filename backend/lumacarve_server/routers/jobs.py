@@ -23,6 +23,12 @@ def submit(request: Request, payload: JobRequest):
         summary = validate_workflow(payload.workflow)
     except WorkflowValidationError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
+    adapter = request.app.state.job_queue.adapter
+    if getattr(adapter, "model_id", None) is not None:
+        if summary.model_id != adapter.model_id or summary.intent != "create":
+            raise HTTPException(
+                422, detail=f"Configured {adapter.model_id} backend currently supports text-to-image only"
+            )
     if summary.references_required and not payload.asset_ids:
         raise HTTPException(422, detail="Reference editing requires uploaded reference images")
     if summary.mask_required and not payload.mask_asset_id:

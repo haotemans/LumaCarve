@@ -22,3 +22,8 @@ py -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 
 
 `GET /api/v1/runtime` 另提供 `queue_scheduler`（实际 Rust/Python 调度后端）和 `queue_scheduler_error`（后台队列故障；正常为 null）。这个状态读取 **当前 FastAPI 实例** 的队列，而不是模块级全局应用，以保证测试和多个隔离实例的数据正确。
+
+
+## Anima 可选模型执行
+
+`LUMACARVE_INFERENCE_BACKEND=anima` 时，API 在 lifespan 创建轻量 `AnimaAdapter`，仅检查完整本地 ModularPipeline 目录与依赖是否已安装；首次提交并领取生成任务后才导入 Torch、初始化 CUDA 和加载模型。`GET /api/v1/runtime` 同时报告 `configured_engine` 与可用的 `engine`，GPU 信息依然标记未测量。详细信息见 [17-anima-adapter.md](17-anima-adapter.md)。

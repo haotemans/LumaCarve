@@ -20,10 +20,14 @@ class Settings:
     max_image_pixels: int = 40_000_000
     max_pending_jobs: int = 16
     inference_offload: str = "auto"  # auto | full | model_cpu
+    inference_backend: str = "disabled"  # disabled | anima
+    anima_model_path: Path | None = None
     allow_model_download: bool = False
     download_region: str = "auto"   # auto | cn | global; no IP geolocation
 
     def __post_init__(self) -> None:
+        if self.inference_backend not in ("disabled", "anima"):
+            raise ValueError("Unsupported inference backend")
         if self.download_region not in ("auto", "cn", "global"):
             raise ValueError("Invalid download region")
         if self.max_asset_bytes < 1024 or self.max_image_pixels < 1024:
@@ -45,6 +49,11 @@ class Settings:
             port=int(os.environ.get("LUMACARVE_PORT", str(default.port))),
             allowed_origins=tuple(x.strip().rstrip("/") for x in origins.split(",") if x.strip()) if origins is not None else DEFAULT_ORIGINS,
             inference_offload=os.environ.get("LUMACARVE_INFERENCE_OFFLOAD", "auto"),
+            inference_backend=os.environ.get("LUMACARVE_INFERENCE_BACKEND", "disabled"),
+            anima_model_path=(
+                Path(os.environ["LUMACARVE_ANIMA_MODEL_PATH"]).expanduser().resolve()
+                if os.environ.get("LUMACARVE_ANIMA_MODEL_PATH") else None
+            ),
             allow_model_download=os.environ.get("LUMACARVE_ALLOW_MODEL_DOWNLOAD", "0") == "1",
             download_region=os.environ.get("LUMACARVE_DOWNLOAD_REGION", "auto"),
         )

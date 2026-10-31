@@ -13,6 +13,13 @@ from lumacarve_runtime.rust_bridge import scheduler_backend
 from .model_downloads import ModelDownloadManager
 from .routers.downloads import router as downloads_router
 from .jobs import DisabledInference, JobQueue, JobStore
+
+def make_inference_adapter(settings: Settings):
+    if settings.inference_backend == "anima":
+        from .adapters.anima import AnimaAdapter
+        return AnimaAdapter(settings)
+    return DisabledInference()
+
 from .routers.jobs import router as jobs_router
 from .routers.workflows import router as workflow_router
 from .routers.models import router as models_router
@@ -25,7 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         settings.ensure_dirs()
-        queue = JobQueue(JobStore(settings.database_path), DisabledInference(), settings.max_pending_jobs)
+        queue = JobQueue(JobStore(settings.database_path), make_inference_adapter(settings), settings.max_pending_jobs)
         app.state.job_queue = queue
         queue.start()
         try:
@@ -72,7 +79,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @api.get("/api/v1/runtime")
     def runtime() -> dict[str, object]:
         return {
-            "engine": "not_connected",
+            "engine": (
+                settings.inference_backend
+                if api.state.job_queue.adapter.ready else "not_connected"
+            ),
+            "configured_engine": settings.inference_backend,
             "gpu": {"available": False, "measured": False},
             "policy": "no_model_loaded_on_api_startup",
             "mode": "local_only",
