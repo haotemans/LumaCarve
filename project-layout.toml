@@ -190,3 +190,10 @@ source = ["scheduler/src/python.rs", "scheduler/pyproject.toml"]
 doc = "scheduler/docs/python-bridge.md"
 tests = ["scheduler/tests/core.rs", "backend/tests/test_rust_bridge.py"]
 verification = "rust-tests"
+
+[[module]]
+id = "runtime.queue_bridge"
+source = ["backend/lumacarve_runtime/queue_bridge.py"]
+doc = "backend/docs/15-rust-queue-bridge.md"
+tests = ["backend/tests/test_queue_bridge.py"]
+verification = "backend-tests"
