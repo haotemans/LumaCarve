@@ -6,6 +6,7 @@
 |---|---|---|---|
 | `src/graph.rs` | [docs/graph.md](docs/graph.md) | DAG 拓扑顺序与输出生命周期 | `tests/core.rs` |
 | `src/cache.rs` | [docs/cache.md](docs/cache.md) | 输入签名与缓存失效 | `tests/core.rs` |
+| `src/incremental.rs` | [docs/incremental.md](docs/incremental.md) | 输出驱动的增量执行/缓存复用规划 | `tests/incremental.rs` |
 | `src/queue.rs` | [docs/queue.md](docs/queue.md) | 一张 GPU 上的就绪任务优先级和取消状态机 | `tests/core.rs` |
 | `src/resources.rs` | [docs/resources.md](docs/resources.md) | GPU/RAM 预算租约 | `tests/core.rs` |
 | `src/python.rs` + `pyproject.toml` | [docs/python-bridge.md](docs/python-bridge.md) | PyO3 Graph、队列、资源租约绑定（可选） | `backend/tests/test_rust_bridge.py` + wheel smoke test |

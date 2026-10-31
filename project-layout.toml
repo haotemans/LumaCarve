@@ -204,3 +204,10 @@ source = ["backend/lumacarve_server/instance_lock.py"]
 doc = "backend/docs/16-single-instance-lock.md"
 tests = ["backend/tests/test_instance_lock.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "rust.scheduler.incremental"
+source = ["scheduler/src/incremental.rs"]
+doc = "scheduler/docs/incremental.md"
+tests = ["scheduler/tests/incremental.rs"]
+verification = "rust-tests"
