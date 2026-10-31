@@ -1,9 +1,12 @@
 //! One-GPU resource queue: interactive jobs get priority without starving others.
 //! SQLite in Python remains the durable source of truth during migration.
 use crate::graph::SchedulerError;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::collections::BTreeMap;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum JobPriority {
     Interactive = 0,
     Normal = 1,
@@ -24,6 +27,58 @@ pub enum CancelOutcome {
     CancelledBeforeStart,
     RequestedRunning,
     AlreadyTerminal,
+}
+
+
+/// Snapshot of a SQLite queued job. Sequence is the durable SQLite rowid, not
+/// an index in an ephemeral Rust queue, so ordering survives app restarts.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingJob {
+    pub id: String,
+    pub priority: JobPriority,
+    pub sequence: u64,
+}
+
+/// A scheduling decision, not a state transition. SQLite must atomically
+/// claim the returned ID before a Python adapter is allowed to execute it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JobChoice {
+    pub id: String,
+    pub priority: JobPriority,
+    pub next_interactive_streak: u32,
+}
+
+/// Select exactly one task from a durable pending snapshot. There is NO
+/// second in-memory execution queue. After three interactive jobs, serve the
+/// OLDEST normal/background job to prevent starvation.
+pub fn select_job(pending: &[PendingJob], interactive_streak: u32)
+    -> Result<Option<JobChoice>, SchedulerError>
+{
+    let mut seen = HashSet::new();
+    for job in pending {
+        if job.id.trim().is_empty() || !seen.insert(job.id.as_str()) {
+            return Err(SchedulerError("Empty or duplicate queued job ID".into()));
+        }
+    }
+    let force_other = interactive_streak >= 3 &&
+        pending.iter().any(|job| job.priority != JobPriority::Interactive);
+    let next = if force_other {
+        pending.iter()
+            .filter(|job| job.priority != JobPriority::Interactive)
+            .min_by_key(|job| (job.sequence, job.id.as_str()))
+    } else {
+        pending.iter()
+            .min_by_key(|job| (job.priority, job.sequence, job.id.as_str()))
+    };
+    Ok(next.map(|job| JobChoice {
+        id: job.id.clone(),
+        priority: job.priority,
+        next_interactive_streak: if job.priority == JobPriority::Interactive {
+            interactive_streak.saturating_add(1).min(3)
+        } else {
+            0
+        },
+    }))
 }
 
 #[derive(Clone, Debug)]
@@ -73,18 +128,15 @@ impl JobScheduler {
         if self.running.is_some() || self.queue.is_empty() {
             return None;
         }
-        let has_non_interactive = self.queue.iter().any(|item| item.priority != JobPriority::Interactive);
-        let force_other = self.consecutive_interactive >= 3 && has_non_interactive;
-        let position = self.queue.iter().enumerate()
-            .filter(|(_, item)| !force_other || item.priority != JobPriority::Interactive)
-            .min_by_key(|(_, item)| (item.priority, item.sequence))
-            .map(|(index, _)| index)?;
+        // Reuse the same snapshot policy as the SQLite-backed Python bridge.
+        let snapshot: Vec<PendingJob> = self.queue.iter().map(|job| PendingJob {
+            id: job.id.clone(), priority: job.priority, sequence: job.sequence,
+        }).collect();
+        let picked = select_job(&snapshot, self.consecutive_interactive as u32)
+            .expect("internal queued IDs are always valid")?;
+        let position = self.queue.iter().position(|job| job.id == picked.id)?;
         let item = self.queue.remove(position);
-        if item.priority == JobPriority::Interactive {
-            self.consecutive_interactive += 1;
-        } else {
-            self.consecutive_interactive = 0;
-        }
+        self.consecutive_interactive = picked.next_interactive_streak as usize;
         self.states.insert(item.id.clone(), JobState::Running);
         self.running = Some(item.id.clone());
         self.cancel_requested = false;

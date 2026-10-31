@@ -10,5 +10,5 @@ mod python;
 
 pub use cache::{fingerprints, FingerprintNode};
 pub use graph::{compile, ExecutionPlan, NodeSpec, SchedulerError};
-pub use queue::{CancelOutcome, JobPriority, JobScheduler, JobState};
+pub use queue::{select_job, CancelOutcome, JobChoice, JobPriority, JobScheduler, JobState, PendingJob};
 pub use resources::{MemoryArbiter, Reservation, ResourceBudget};

@@ -1,6 +1,6 @@
 //! CPU-only contract tests. Rust metadata policies do not load any model.
 use lumacarve_scheduler::{
-    compile, fingerprints, CancelOutcome, FingerprintNode, JobPriority, JobScheduler,
+    compile, fingerprints, select_job, CancelOutcome, FingerprintNode, JobPriority, JobScheduler, PendingJob,
     JobState, MemoryArbiter, NodeSpec, Reservation, ResourceBudget,
 };
 use serde_json::json;
@@ -112,4 +112,34 @@ fn memory_leases_enforce_budget_no_duplicate() {
     arbiter.release("dit").unwrap();
     arbiter.reserve("vae", Reservation {gpu_bytes:4,cpu_bytes:1}).unwrap();
     assert_eq!(arbiter.used().gpu_bytes, 4);
+}
+
+
+#[test]
+fn sqlite_snapshot_selector_is_stable_and_fair() {
+    let snapshot = vec![
+        PendingJob { id: "bg".into(), priority: JobPriority::Background, sequence: 1 },
+        PendingJob { id: "int-2".into(), priority: JobPriority::Interactive, sequence: 3 },
+        PendingJob { id: "normal".into(), priority: JobPriority::Normal, sequence: 2 },
+        PendingJob { id: "int-1".into(), priority: JobPriority::Interactive, sequence: 4 },
+    ];
+    // Highest priority first, and lowest persistent sequence breaks ties.
+    assert_eq!(select_job(&snapshot, 0).unwrap().unwrap().id, "int-2");
+    // Once interactive work has monopolized three turns, choose oldest
+    // non-interactive job (background can outrank normal by age here).
+    let chosen = select_job(&snapshot, 3).unwrap().unwrap();
+    assert_eq!(chosen.id, "bg");
+    assert_eq!(chosen.next_interactive_streak, 0);
+    assert_eq!(select_job(&[], 2).unwrap(), None);
+}
+#[test]
+fn sqlite_snapshot_selector_rejects_duplicate_or_blank_ids() {
+    let broken = vec![
+        PendingJob { id: "a".into(), priority: JobPriority::Normal, sequence: 1 },
+        PendingJob { id: "a".into(), priority: JobPriority::Normal, sequence: 2 },
+    ];
+    assert!(select_job(&broken, 0).is_err());
+    assert!(select_job(&[PendingJob {
+        id: "".into(), priority: JobPriority::Background, sequence: 3,
+    }], 0).is_err());
 }
