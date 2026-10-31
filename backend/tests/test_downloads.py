@@ -20,6 +20,22 @@ class ModelDownloadTests(unittest.TestCase):
                 rejected = client.post("/api/v1/downloads", json={"model_id": "qwen-image-2.1"})
                 self.assertEqual(rejected.status_code,403)
 
+    def test_anima_download_sources_have_distinct_formats(self):
+        with tempfile.TemporaryDirectory() as temp:
+            settings = Settings(data_dir=Path(temp), download_region="cn")
+            cn = model_destination(settings, "anima-base-1", "master", provider="modelscope")
+            hf = model_destination(settings, "anima-base-1", "main", provider="huggingface")
+            self.assertNotEqual(cn, hf)
+            self.assertIn("/modelscope/", cn.as_posix())
+            self.assertIn("/huggingface/", hf.as_posix())
+            with self.assertRaises(ModelDownloadError):
+                model_destination(settings, "anima-base-1", "main")
+            with TestClient(create_app(settings)) as client:
+                entry = next(x for x in client.get("/api/v1/downloads/catalog").json()["models"]
+                             if x["id"] == "anima-base-1")
+                self.assertEqual(entry["format"], "comfyui_split")
+                self.assertFalse(entry["supports_lumacarve_inference"])
+
     def test_unknown_model_or_revision_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             settings=Settings(data_dir=Path(temp),allow_model_download=True)

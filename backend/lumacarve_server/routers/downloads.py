@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/v1/downloads", tags=["model downloads"])
 
 class DownloadRequest(BaseModel):
     model_id: str = Field(min_length=1, max_length=100)
-    revision: str = Field(default="master", max_length=91)
+    revision: str | None = Field(default=None, max_length=91)
     provider: str | None = Field(default=None, pattern=r"^(modelscope|huggingface)$")
 
 

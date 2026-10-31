@@ -21,6 +21,22 @@ MODEL_CATALOG = {
         "global": "Qwen/Qwen-Image-2.1",
         "license_note": "qwen-research; review terms before downloading",
     },
+    "anima-base-1": {
+        "title": "Anima Base 1.0",
+        "cn": "circlestone-labs/Anima",
+        "global": "circlestone-labs/Anima-Base-v1.0-Diffusers",
+        "cn_format": "comfyui_split",
+        "global_format": "diffusers_modular",
+        "default_cn_revision": "master",
+        "default_global_revision": "main",
+        "cn_patterns": [
+            "split_files/diffusion_models/anima-base-v1.0.safetensors",
+            "split_files/text_encoders/qwen_3_06b_base.safetensors",
+            "split_files/vae/qwen_image_vae.safetensors",
+            "LICENSE.md", "README.md",
+        ],
+        "license_note": "CircleStone Labs Non-Commercial License; NVIDIA Open Model License may also apply",
+    },
     "moss-image-base": {
         "title": "MOSS-Image Base",
         "cn": "openmoss/MOSS-Image-Base",
@@ -42,14 +58,18 @@ def validate_revision(revision: str) -> str:
     return revision
 
 
-def model_destination(settings: Settings, model_id: str, revision: str) -> Path:
+def model_destination(settings: Settings, model_id: str, revision: str, *, provider: str | None = None) -> Path:
     if model_id not in MODEL_CATALOG:
         raise ModelDownloadError("Unsupported model ID; use the published model catalog")
     revision = validate_revision(revision)
+    if model_id == "anima-base-1":
+        if provider not in ("modelscope", "huggingface"):
+            raise ModelDownloadError("Anima downloads require an explicit provider")
+        return settings.models_dir / "bundles" / model_id / provider / revision
     return settings.models_dir / "bundles" / model_id / revision
 
 
-def download_snapshot(provider: str, repo_id: str, revision: str, destination: Path) -> Path:
+def download_snapshot(provider: str, repo_id: str, revision: str, destination: Path, *, allow_patterns: list[str] | None = None) -> Path:
     """Network boundary; imported lazily to keep the API lightweight.
 
     Hub SDK validates remote hashes when metadata is available. Downloads are
@@ -59,13 +79,14 @@ def download_snapshot(provider: str, repo_id: str, revision: str, destination: P
         from modelscope_hub import HubApi
         client = HubApi(endpoint="https://modelscope.cn")
         downloaded = client.download_repo(
-            repo_id, "model", revision=revision, local_dir=destination, max_workers=4
+            repo_id, "model", revision=revision, local_dir=destination,
+            allow_patterns=allow_patterns, max_workers=4
         )
     elif provider == "huggingface":
         from huggingface_hub import snapshot_download
         downloaded = snapshot_download(
             repo_id=repo_id, revision=revision, local_dir=destination,
-            max_workers=4,
+            max_workers=4, allow_patterns=allow_patterns,
         )
     else:
         raise ModelDownloadError("Unsupported provider")
@@ -105,6 +126,8 @@ class ModelDownloadManager:
                 "id": key, "title": item["title"],
                 "provider": "modelscope" if region == "cn" else "huggingface",
                 "repository": item[region], "license_note": item["license_note"],
+                "format": item.get(f"{region}_format", "unknown"),
+                "supports_lumacarve_inference": key == "anima-base-1" and region == "global",
             }
             for key, item in MODEL_CATALOG.items()
         ]
@@ -115,15 +138,20 @@ class ModelDownloadManager:
                 raise KeyError(job_id)
             return self._jobs[job_id].json()
 
-    def submit(self, model_id: str, revision: str = "master", *, provider: str | None = None) -> dict:
+    def submit(self, model_id: str, revision: str | None = None, *, provider: str | None = None) -> dict:
         if not self.settings.allow_model_download:
             raise PermissionError("Model downloads disabled; set LUMACARVE_ALLOW_MODEL_DOWNLOAD=1")
-        destination = model_destination(self.settings, model_id, revision)
         region = self.settings.resolved_download_region
         selected = provider or ("modelscope" if region == "cn" else "huggingface")
         if selected not in ("modelscope", "huggingface"):
             raise ModelDownloadError("Unsupported provider")
-        repository = MODEL_CATALOG[model_id]["cn" if selected == "modelscope" else "global"]
+        if model_id not in MODEL_CATALOG:
+            raise ModelDownloadError("Unsupported model ID")
+        entry = MODEL_CATALOG[model_id]
+        variant = "cn" if selected == "modelscope" else "global"
+        revision = revision or entry.get(f"default_{variant}_revision", "master")
+        destination = model_destination(self.settings, model_id, revision, provider=selected)
+        repository = entry[variant]
         with self._lock:
             if self._active is not None:
                 raise RuntimeError("Another model download is in progress")
@@ -143,10 +171,34 @@ class ModelDownloadManager:
         partial = destination.parent / (destination.name + ".partial")
         try:
             partial.mkdir(parents=True, exist_ok=True)
-            download_snapshot(job.provider, job.repository, job.revision, partial)
+            entry = MODEL_CATALOG[job.model_id]
+            patterns = entry.get("cn_patterns") if job.provider == "modelscope" else None
+            if patterns:
+                download_snapshot(
+                    job.provider, job.repository, job.revision, partial,
+                    allow_patterns=patterns,
+                )
+            else:
+                download_snapshot(job.provider, job.repository, job.revision, partial)
             # SDK has completed; an unfinished snapshot must never be advertised.
             if not any(p.is_file() for p in partial.rglob("*")):
                 raise ModelDownloadError("Download returned an empty snapshot")
+            if job.model_id == "anima-base-1":
+                if job.provider == "huggingface":
+                    expected = ["modular_model_index.json", "transformer", "vae",
+                                "text_encoder", "text_conditioner", "tokenizer", "t5_tokenizer"]
+                    if not (partial / expected[0]).is_file() or any(
+                        not (partial / name).is_dir() for name in expected[1:]
+                    ):
+                        raise ModelDownloadError("Anima ModularPipeline snapshot is incomplete")
+                else:
+                    required = [
+                        "split_files/diffusion_models/anima-base-v1.0.safetensors",
+                        "split_files/text_encoders/qwen_3_06b_base.safetensors",
+                        "split_files/vae/qwen_image_vae.safetensors",
+                    ]
+                    if any(not (partial / name).is_file() for name in required):
+                        raise ModelDownloadError("Anima ComfyUI model components are incomplete")
             if destination.exists():
                 raise ModelDownloadError("Destination already exists; refusing to overwrite")
             partial.rename(destination)
