@@ -10,6 +10,8 @@ import argparse
 import json
 import os
 import platform
+import shutil
+import tempfile
 import subprocess
 import sys
 import venv
@@ -52,6 +54,40 @@ def plan_attention(requested: str, *, system: str, cuda_available: bool, toolkit
     return packages, None
 
 
+def plan_rust_scheduler(requested: str, *, cargo_available: bool) -> tuple[bool, str | None]:
+    """Build in the shared .venv when possible; never install Rust automatically."""
+    if requested not in ("auto", "required", "python"):
+        raise ValueError("scheduler must be auto, required or python")
+    if requested == "python":
+        return False, "Rust scheduler explicitly disabled"
+    if not cargo_available:
+        if requested == "required":
+            raise RuntimeError("Rust scheduler required but Cargo is missing; install Rust via rustup")
+        return False, "Cargo not found; using Python fallback"
+    return True, None
+
+
+def install_rust_scheduler(python: str, pip: list[str], mirror_flags: list[str]) -> None:
+    """Compile an optional PyO3 extension into the existing environment."""
+    command(pip + ["install", "maturin>=1.7,<2"] + mirror_flags)
+    with tempfile.TemporaryDirectory(prefix="lumacarve-rust-wheel-") as wheel_dir:
+        command([
+            python, "-m", "maturin", "build",
+            "--manifest-path", str(ROOT / "scheduler" / "Cargo.toml"),
+            "--features", "python",
+            "--interpreter", python,
+            "--out", wheel_dir,
+        ])
+        wheels = sorted(Path(wheel_dir).glob("lumacarve_scheduler-*.whl"))
+        if len(wheels) != 1:
+            raise RuntimeError("Expected exactly one Rust scheduler wheel")
+        command(pip + ["install", "--no-deps", "--force-reinstall", str(wheels[0])])
+        command([
+            python, "-c",
+            "import lumacarve_scheduler; assert callable(lumacarve_scheduler.compile_graph_json)",
+        ])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="LumaCarve single-.venv dependency installer")
     parser.add_argument("--torch", choices=["default", "cpu", "cu126", "cu128", "cu130"], default="default",
@@ -61,10 +97,16 @@ def main() -> int:
     parser.add_argument("--torch-source", choices=["auto", "official", "cn"], default="auto",
                         help="Torch CUDA wheels: regional PyTorch mirror or official")
     parser.add_argument("--attention", choices=["auto", "both", "flash-attn", "sageattention", "none"], default="auto")
+    parser.add_argument("--scheduler", choices=["auto", "required", "python"], default="auto",
+                        help="Rust scheduler: auto builds with local Cargo, required fails, python skips")
     parser.add_argument("--profile", choices=["full", "api"], default="full")
     parser.add_argument("--strict-attention", action="store_true", help="Fail instead of SDPA fallback")
     parser.add_argument("--upgrade", action="store_true", help="Upgrade installed packages")
     args = parser.parse_args()
+    try:
+        rust_build, rust_reason = plan_rust_scheduler(args.scheduler, cargo_available=shutil.which("cargo") is not None)
+    except RuntimeError as exc:
+        parser.error(str(exc))
     region = resolve_region(args.region)
     pip_index = pip_index_for_region(region)
     mirror_flags = ["--index-url", pip_index] if pip_index else []
@@ -85,6 +127,9 @@ def main() -> int:
         "model_provider": "modelscope" if region == "cn" else "huggingface",
         "torch_wheel_url": torch_index(args.torch, region=region, source=args.torch_source) or "default PyPI index",
         "attention_installed": [],
+        "scheduler_requested": args.scheduler,
+        "scheduler_backend": "python-fallback",
+        "scheduler_reason": rust_reason,
         "fallback": None,
     }
     try:
@@ -131,10 +176,20 @@ def main() -> int:
         if args.strict_attention and args.attention != "none" and args.profile == "full":
             if len(report["attention_installed"]) != len(packages) or reason:
                 raise RuntimeError(reason or "Attention installation incomplete")
+        if rust_build:
+            try:
+                install_rust_scheduler(python, pip, mirror_flags)
+                report["scheduler_backend"] = "rust"
+                report["scheduler_reason"] = None
+            except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+                report["scheduler_reason"] = f"Rust build failed: {exc}"
+                if args.scheduler == "required":
+                    raise
         print("LumaCarve environment ready:", python)
         print("Download region:", region, "| Python packages:", report["python_index_url"])
         print("Model hub:", report["model_provider"], "| Torch index:", report["torch_wheel_url"])
         print("Attention:", report["attention_installed"] or "PyTorch SDPA")
+        print("Graph scheduler:", report["scheduler_backend"], "|", report["scheduler_reason"] or "extension installed")
         if report["fallback"]:
             print("Note:", report["fallback"])
         return 0

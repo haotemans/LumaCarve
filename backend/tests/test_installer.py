@@ -36,6 +36,15 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(INSTALLER.torch_index("cu128", region="cn", source="official"),
                          "https://download.pytorch.org/whl/cu128")
 
+    def test_rust_scheduler_policy(self):
+        self.assertEqual(INSTALLER.plan_rust_scheduler("auto", cargo_available=False),
+                         (False, "Cargo not found; using Python fallback"))
+        self.assertEqual(INSTALLER.plan_rust_scheduler("auto", cargo_available=True),
+                         (True, None))
+        self.assertEqual(INSTALLER.plan_rust_scheduler("python", cargo_available=True)[0], False)
+        with self.assertRaises(RuntimeError):
+            INSTALLER.plan_rust_scheduler("required", cargo_available=False)
+
     def test_cpu_wheel_index(self):
         self.assertEqual(INSTALLER.torch_index("cu128"),"https://download.pytorch.org/whl/cu128")
         self.assertEqual(INSTALLER.torch_index("cpu"),"https://download.pytorch.org/whl/cpu")

@@ -37,3 +37,12 @@ python3.11 tools/setup.py --torch cu128 --attention both
 ## 国内专用源
 
 `--region cn`：清华 TUNA PyPI、中国教育网 PyTorch CUDA wheel 镜像，以及 ModelScope 模型客户端下载组件；`--torch-source official` 仅对 PyTorch wheel 使用官方源。详情见 [11-download-sources.md](11-download-sources.md)、[12-modelscope-downloads.md](12-modelscope-downloads.md)。
+
+
+## Rust 调度器安装策略
+
+安装器新增 `--scheduler auto|required|python`。默认 `auto`：如果本机有 Cargo，会使用 maturin **在项目根 .venv 内构建并安装 PyO3 wheel**，并验证可以导入；如果没有 Rust 编译器或编译失败，使用现有 Python 图计划回退并写入安装报告。不会从来历不明的源下载二进制 wheel。
+
+`--scheduler required` 要求 Rust 存在且能够成功构建，否则命令失败；`--scheduler python` 显式跳过。Windows 可以先通过 Rust 官方 rustup 安装编译工具，须确保 C++ Build Tools 等编译依赖齐备。Rust 编译不需要另一个 Python 虚拟环境。
+
+这个选项使 Graph 编译优先 Rust，但 Python `JobQueue`、实际模型运行及 CUDA 同步尚未改为 Rust。细节见 [14-rust-graph-bridge.md](14-rust-graph-bridge.md)。

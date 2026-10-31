@@ -15,7 +15,9 @@
 
 只有一个项目根 `.venv`。后端 API 安装到此环境，Rust 扩展也安装到同一个环境，**不启动独立 Rust HTTP 服务，不为 Rust 再建 Python 环境**。
 
-开发者安装示例（从项目根目录）：
+普通用户推荐运行一键安装器：`py -3.11 tools/setup.py --region cn --torch cu128 --scheduler auto`。如果未安装 Rust 编译器，明确回退 Python Graph，安装报告写入原因。要求 Rust 时使用 `--scheduler required`。
+
+开发者手动安装示例（从项目根目录）：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install "maturin>=1.7,<2"
