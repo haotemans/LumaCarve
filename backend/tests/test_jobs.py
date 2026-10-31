@@ -3,6 +3,7 @@ import sqlite3
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from fastapi.testclient import TestClient

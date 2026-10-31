@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import patch
 
-from lumacarve_runtime.queue_bridge import choose_pending_job
+from lumacarve_runtime.queue_bridge import choose_pending_job, require_compatible_queue_backend
 from lumacarve_runtime.rust_bridge import scheduler_backend
 
 
@@ -26,6 +26,13 @@ class QueueBridgeTests(unittest.TestCase):
         bad = pending() + [dict(pending()[0])]
         with self.assertRaises(ValueError):
             choose_pending_job(bad, 0)
+
+    def test_old_native_wheel_refused_before_queue_start(self):
+        class OldWheel:
+            compile_graph_json = staticmethod(lambda _: "{}")
+        with patch("lumacarve_runtime.queue_bridge._extension", return_value=OldWheel()):
+            with self.assertRaisesRegex(RuntimeError, "Outdated"):
+                require_compatible_queue_backend()
 
     def test_corrupt_extension_refused(self):
         class Broken:

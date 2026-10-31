@@ -28,3 +28,6 @@ HTTP API：
 ## 跨进程唯一所有权
 
 原子领取只防止数据库重复运行，**不能阻止两个服务进程分别持有 GPU 权重**。现在 `JobQueue.start()` 会先获取 [独占进程锁](16-single-instance-lock.md)，成功后才恢复/标记异常退出的 running 任务。仅实例化 `JobStore` 不会干扰已经在运行的任务。锁文件不删除，worker 确认结束后才释放。
+
+
+调度异常（例如 Rust wheel 与 Python 不兼容）会让 worker 停止领取新任务、保留 SQLite 中的 queued 记录，并在 `GET /api/v1/runtime` 返回 `queue_scheduler_error`；后续提交明确返回 503，供用户修复扩展后重启。

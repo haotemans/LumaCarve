@@ -14,6 +14,19 @@ from .rust_bridge import _extension
 PRIORITIES = ("interactive", "normal", "background")
 
 
+def require_compatible_queue_backend() -> str:
+    """Reject outdated Rust wheels before recovering or starting GPU tasks."""
+    engine = _extension()
+    if engine is None:
+        return "python-fallback"
+    if not callable(getattr(engine, "choose_queued_job", None)):
+        raise RuntimeError(
+            "Outdated lumacarve_scheduler extension. Reinstall Rust scheduler "
+            "with tools/setup.py --scheduler required."
+        )
+    return "rust"
+
+
 def _python_choice(pending: Sequence[dict[str, Any]], streak: int) -> tuple[str, int] | None:
     if not pending:
         return None
@@ -51,6 +64,8 @@ def choose_pending_job(pending: Sequence[dict[str, Any]], streak: int) -> tuple[
     if engine is None:
         return _python_choice(pending, streak)
 
+    if not callable(getattr(engine, "choose_queued_job", None)):
+        raise RuntimeError("Rust queue selector missing; rebuild scheduler extension")
     result = engine.choose_queued_job(json.dumps(pending, separators=(",", ":")), streak)
     if not pending:
         if result is not None:

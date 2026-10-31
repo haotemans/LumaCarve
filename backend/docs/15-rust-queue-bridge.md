@@ -13,3 +13,8 @@ Rust PyO3 已安装：调用 `choose_queued_job`，并与 Python 参考决策检
 ## 实际状态
 
 本模块当前实现并测试了选择策略。连接到真实数据库的原子领取入口在 `jobs.py` 实现；推理适配器未连接时任务 API 仍返回 503。
+
+
+## 旧扩展和故障隔离
+
+`require_compatible_queue_backend()` 在获得单实例锁后、恢复异常中任务**之前**验证已经安装的 PyO3 wheel 是否提供 `choose_queued_job`。缺少该方法时明确拒绝启动；不因旧版二进制存在而误报 Rust 已就绪。未安装任何 Rust 扩展则采用可测试的 Python 回退。运行时调度决策出现异常，会将 `JobQueue.fatal_error` 暴露给诊断接口，不会悄悄丢弃或执行剩余任务。

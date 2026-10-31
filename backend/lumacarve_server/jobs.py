@@ -13,7 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from lumacarve_runtime.queue_bridge import PRIORITIES, choose_pending_job
+from lumacarve_runtime.queue_bridge import (
+    PRIORITIES, choose_pending_job, require_compatible_queue_backend,
+)
 from .instance_lock import LocalQueueLock
 
 STATUS = ("queued", "running", "completed", "failed", "cancelled")
@@ -199,12 +201,16 @@ class JobQueue:
         self._cancel: dict[str, threading.Event] = {}
         self._thread: threading.Thread | None = None
         self._owner = LocalQueueLock(store.path.with_name('gpu-worker.lock'))
+        self.queue_backend = "not_started"
+        self.fatal_error: str | None = None
 
     def start(self) -> None:
         if self._thread is not None:
             return
         self._owner.acquire()
         try:
+            # Validate the installed PyO3 ABI BEFORE changing any SQLite state.
+            self.queue_backend = require_compatible_queue_backend()
             self.store.recover_interrupted()
             self._thread = threading.Thread(
                 target=self._run, name="lumacarve-gpu-worker", daemon=True
@@ -226,6 +232,8 @@ class JobQueue:
 
     def submit(self, workflow: dict[str, Any], inputs: dict[str, Any], priority: str = "normal") -> dict[str, Any]:
         with self._lock:
+            if self.fatal_error is not None:
+                raise EngineUnavailable(f"GPU scheduler unavailable: {self.fatal_error}")
             if not self.adapter.ready:
                 raise EngineUnavailable("GPU inference adapter is not configured; job was not enqueued")
             if self.store.count_active() >= self.max_active:
@@ -256,10 +264,17 @@ class JobQueue:
             while not self._shutdown.is_set() and self.adapter.ready:
                 # Keep cancellation and the queued-to-running claim atomic
                 # with respect to this process's API cancellation requests.
-                with self._lock:
-                    task = self._next()
-                    if task is not None:
-                        cancel = self._cancel.setdefault(task[0], threading.Event())
+                try:
+                    with self._lock:
+                        task = self._next()
+                        if task is not None:
+                            cancel = self._cancel.setdefault(task[0], threading.Event())
+                except Exception as exc:
+                    # Keep queued tasks in SQLite; surface fatal scheduler errors
+                    # rather than silently killing the worker thread.
+                    with self._lock:
+                        self.fatal_error = f"{type(exc).__name__}: {exc}"[:500]
+                    return
                 if task is None:
                     break
                 job_id, workflow, inputs = task
