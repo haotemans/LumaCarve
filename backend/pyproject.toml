@@ -44,5 +44,6 @@ sage = ["sageattention>=2"]
 attention-build = ["ninja>=1.11", "packaging>=23", "psutil>=5.9"]
 
 
-[tool.setuptools]
-packages = ["lumacarve_runtime", "lumacarve_server"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lumacarve_runtime*", "lumacarve_server*"]

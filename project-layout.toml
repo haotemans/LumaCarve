@@ -134,3 +134,10 @@ source = ["frontend/src/features/image-studio/image-studio.css"]
 doc = "frontend/src/features/image-studio/docs/image-studio-css.md"
 tests = []
 verification = "frontend-build"
+
+[[module]]
+id = "backend.packaging"
+source = ["backend/pyproject.toml"]
+doc = "backend/docs/13-package-layout.md"
+tests = ["backend/tests/test_packaging.py"]
+verification = "backend-tests"
