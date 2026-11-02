@@ -1,6 +1,6 @@
 # 20 · Anima Triton AdaLN-Zero 实验加速
 
-**源码**：`lumacarve_runtime/kernels/anima_adaln.py`（懒加载、匹配及安全回退）、`lumacarve_runtime/kernels/_anima_adaln_triton.py`（GPU Kernel）；**测试**：`tests/test_anima_triton.py`；**基准工具**：`../tools/benchmark_anima_triton.py`。
+**源码**：`lumacarve_runtime/kernels/anima_adaln.py`（懒加载、匹配及安全回退）、`lumacarve_runtime/kernels/_anima_adaln_triton.py`（GPU Kernel）；**测试**：`tests/test_anima_triton.py`；**基准工具**：`../../tools/benchmark_anima_triton.py`。
 
 ## 范围与来源
 
