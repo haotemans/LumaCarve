@@ -165,6 +165,14 @@ class AnimaAdapter:
             logging.getLogger(__name__).info(
                 "Anima Triton AdaLN: installed=%d; %s", report.installed, report.reason
             )
+        if self.settings.anima_triton_rope == "experimental":
+            from lumacarve_runtime.kernels.anima_rope import install_anima_rope_triton
+
+            report = install_anima_rope_triton(pipe)
+            import logging
+            logging.getLogger(__name__).info(
+                "Anima Triton RoPE: installed=%d; %s", report.installed, report.reason
+            )
         return pipe, torch
 
     def _lora_path(self, name: str) -> Path:
