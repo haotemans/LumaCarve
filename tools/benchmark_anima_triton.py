@@ -40,8 +40,10 @@ def main(argv: list[str] | None = None) -> int:
     dtype = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}[args.dtype]
     device = "cuda"
     x = torch.randn(args.batch, args.tokens, args.channels, dtype=dtype, device=device)
-    scale = torch.randn(args.batch, 1, args.channels, dtype=dtype, device=device) * .1
-    shift = torch.randn(args.batch, 1, args.channels, dtype=dtype, device=device) * .1
+    # Match the actual Diffusers AdaLN layout: channel slices share storage
+    # and retain the 3*C stride instead of incurring contiguous copies.
+    packed = torch.randn(args.batch, 1, 3 * args.channels, dtype=dtype, device=device) * .1
+    shift, scale, _gate = packed.chunk(3, dim=-1)
     expected_fn = lambda: torch.nn.functional.layer_norm(x, (args.channels,), eps=1e-6) * (1 + scale) + shift
     triton_fn = lambda: fused_ada_layer_norm(x, shift, scale, 1e-6)
 
