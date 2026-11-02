@@ -63,3 +63,7 @@ CPU 单元测试通过可证明工作流转换、加载生命周期和保存行�
 ## 可选的 Triton AdaLN-Zero 加速
 
 可显式设置 `LUMACARVE_ANIMA_TRITON=experimental`，在真实加载 Diffusers Anima 后仅针对 Cosmos Transformer 的 AdaLN-Zero 调制路径安装可回退的融合内核。默认 `off` 不加载 Triton、不修改计算路径。实验优化仅支持推理前向；首次调用有 JIT 编译开销，尚无真实 GPU 的图像正确性或性能验收数据。详细代码、硬件兼容、数值测试和基准脚本见 [20-anima-triton.md](20-anima-triton.md)。
+
+## 实验性的 Q/K RoPE 融合
+
+`LUMACARVE_ANIMA_TRITON_ROPE=experimental` 启用自注意力 RoPE 融合，默认 `off`；与已有的 AdaLN Triton 实验开关独立。仅针对 Diffusers Cosmos 自注意力 `attn1`；不替换 Cross Attention、Attention Kernel 本身或 LoRA 权重，出现计算不兼容时回退原版。源码、测试与 GPU 对比见 [21-anima-triton-rope.md](21-anima-triton-rope.md)。
