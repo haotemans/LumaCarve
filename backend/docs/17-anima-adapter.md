@@ -67,3 +67,7 @@ CPU 单元测试通过可证明工作流转换、加载生命周期和保存行�
 ## 实验性的 Q/K RoPE 融合
 
 `LUMACARVE_ANIMA_TRITON_ROPE=experimental` 启用自注意力 RoPE 融合，默认 `off`；与已有的 AdaLN Triton 实验开关独立。仅针对 Diffusers Cosmos 自注意力 `attn1`；不替换 Cross Attention、Attention Kernel 本身或 LoRA 权重，出现计算不兼容时回退原版。源码、测试与 GPU 对比见 [21-anima-triton-rope.md](21-anima-triton-rope.md)。
+
+## 第三阶段 · 可选的 Gated Residual 融合
+
+`LUMACARVE_ANIMA_TRITON_RESIDUAL=experimental` 仅在标准 Anima/Cosmos Transformer Block 内融合三个 `hidden_states + gate * branch` 前向计算，不改动 GEMM、GELU 或 LoRA 权重。默认关闭；失败后回退原路径。源码、对照测试、基准详见 [22-anima-triton-residual.md](22-anima-triton-residual.md)。
