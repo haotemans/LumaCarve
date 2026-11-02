@@ -43,6 +43,18 @@ $env:LUMACARVE_ANIMA_TRITON_ROPE = "experimental"
 此补丁只改当前 Pipeline 的 `attn1.processor` 实例，不修改 Diffusers 全局方法；再次调用安装器不会重复包裹。
 首次 Kernel launch 可能 JIT 编译。运行时出错后，当前 Pipeline 全部已安装的 RoPE 处理器共享一次断路器，后续调用恢复原来的 Diffusers 计算，避免每次采样重复尝试失败的 Kernel。
 
+## 只读 RoPE 频率表缓存
+
+Diffusers `CosmosRotaryPosEmbed.forward` 会在 DiT 每一个采样步根据相同图像分辨率重新生成 FP32 `cos` 和 `sin` 表。安装 Q/K 融合优化时，同时为该 Transformer 的 **确切 `CosmosRotaryPosEmbed` 实例**附加低开销、受限的表缓存：
+
+- 缓存键：CUDA 设备、输入帧数、图像高度/宽度、FPS、RoPE 配置（包含 NTK scaling）；**Batch 不影响 RoPE 频率**。
+- 只缓存 FP32 且与当前输入设备一致的表，**最多 2 组，总计不超过 16 MiB GPU 显存**；超出大小的直接执行原算法。
+- 使用 Python 字典/锁管理命中和 LRU 淘汰；不在每步调用任何 GPU 显存监视、Profiler、JIT Autotune 或独立预测。
+- 只在安全的 CUDA 纯推理路径启用。ONNX、动态图编译、Autograd、CPU、Kernel 断路器激活时均使用原函数。
+- 模型实例被丢弃时缓存自然随之释放；它不是跨模型或跨设备的全局缓存。需要将这至多 16 MiB 的驻留开销纳入后续 AMEP 显存预算管理。
+
+这部分缓存不是 Triton 计算，本质是避免每步重复构造确定性 RoPE 表。GPU 数值与端到端性能仍须实机验证。
+
 ## 性能与安全约束
 
 - GPU Kernel 不进行 autotune、显存预测或基准试跑；只有用户明确执行基准命令才做 GPU 测速。
