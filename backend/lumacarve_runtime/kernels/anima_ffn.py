@@ -85,12 +85,18 @@ def _compatible(hidden_states: Any, projection: Any) -> bool:
 
 def _native_projection(projection: Any, linear_type: type) -> bool:
     """Prevent bypassing PEFT/LoRA modules, onload/offload or custom hooks."""
-    if type(projection) is not linear_type:
+    if type(projection) is not linear_type or getattr(projection, "_hf_hook", None) is not None:
+        return False
+    if getattr(projection, "_compiled_call_impl", None) is not None:
         return False
     forward = getattr(projection, "forward", None)
     if getattr(forward, "__func__", None) is not linear_type.forward:
         return False
-    for attr in ("_forward_hooks", "_forward_pre_hooks", "_backward_hooks", "_backward_pre_hooks"):
+    for attr in (
+        "_forward_hooks", "_forward_pre_hooks", "_backward_hooks",
+        "_backward_pre_hooks", "_forward_hooks_with_kwargs",
+        "_forward_pre_hooks_with_kwargs",
+    ):
         if getattr(projection, attr, None):
             return False
 
@@ -160,11 +166,17 @@ def install_anima_ffn_triton(pipeline: Any) -> AnimaFFNReport:
         activation, dropout, output_linear = modules
         if (
             type(activation) is not gelu_type or
+            getattr(activation, "training", False) or
+            getattr(ff, "training", False) or
+            getattr(activation, "_hf_hook", None) is not None or
+            getattr(activation, "_compiled_call_impl", None) is not None or
+            any(getattr(activation, item, None) for item in ("_forward_hooks", "_forward_pre_hooks")) or
             getattr(activation, "approximate", None) != "none" or
             hasattr(activation, "_lumacarve_ffn_original_forward") or
             getattr(getattr(activation, "forward", None), "__func__", None) is not gelu_type.forward or
             type(dropout) is not dropout_type or dropout.p != 0 or
-            type(output_linear) is not linear_type
+            type(output_linear) is not linear_type or
+            getattr(output_linear, "training", False)
         ):
             continue
         projection = getattr(activation, "proj", None)
@@ -178,6 +190,7 @@ def install_anima_ffn_triton(pipeline: Any) -> AnimaFFNReport:
             if (
                 not state["active"]
                 or not _inference_safe()
+                or getattr(self, "training", False)
                 or getattr(hidden_states, "requires_grad", False)
                 or not _native_projection(projection, linear_type)
                 or not _compatible(hidden_states, projection)
