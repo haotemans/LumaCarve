@@ -199,6 +199,9 @@ class FakeRotaryPositionEmbedding:
 
 class AnimaRotaryTableCacheTests(unittest.TestCase):
     def install(self, rotary, state=None):
+        guard = patch.object(anima_rope, "_forward_safe", return_value=True)
+        guard.start()
+        self.addCleanup(guard.stop)
         state = state if state is not None else {"active": True}
         transformer = SimpleNamespace(rope=rotary)
         with patch.object(anima_rope, "_rotary_pos_embed_class", return_value=FakeRotaryPositionEmbedding):
