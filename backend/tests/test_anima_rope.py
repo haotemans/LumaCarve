@@ -58,6 +58,15 @@ class FakeTensor:
     def size(self, dim):
         return self.shape[dim]
 
+    def numel(self):
+        total = 1
+        for dim in self.shape:
+            total *= dim
+        return total
+
+    def element_size(self):
+        return 4 if self.dtype == "torch.float32" else 2
+
 
 class FakeOriginalProcessor:
     def __init__(self):
@@ -171,6 +180,81 @@ class AnimaRoPEPolicyTests(unittest.TestCase):
             self.assertEqual(second.get_processor()(second, FakeTensor((1, 8, 128)), image_rotary_emb=freq), "original")
             self.assertEqual(fused.call_count, 1)
 
+
+class FakeRotaryPositionEmbedding:
+    def __init__(self):
+        self.patch_size = (1, 2, 2)
+        self.max_size = (1, 128, 128)
+        self.base_fps = 24
+        self.dim_h, self.dim_w, self.dim_t = 42, 42, 44
+        self.h_ntk_factor = self.w_ntk_factor = self.t_ntk_factor = 1.0
+        self.calls = 0
+
+    def forward(self, x, fps=None):
+        self.calls += 1
+        tokens = (x.shape[2] // self.patch_size[0]) * (x.shape[3] // self.patch_size[1]) * (x.shape[4] // self.patch_size[2])
+        return (FakeTensor((tokens, 128), dtype="torch.float32", device=x.device),
+                FakeTensor((tokens, 128), dtype="torch.float32", device=x.device))
+
+
+class AnimaRotaryTableCacheTests(unittest.TestCase):
+    def install(self, rotary, state=None):
+        state = state if state is not None else {"active": True}
+        transformer = SimpleNamespace(rope=rotary)
+        with patch.object(anima_rope, "_rotary_pos_embed_class", return_value=FakeRotaryPositionEmbedding):
+            return anima_rope._install_rotary_table_cache(transformer, state)
+
+    def test_same_shape_cached_but_different_shapes_do_not_collide(self):
+        rope = FakeRotaryPositionEmbedding()
+        state = {"active": True}
+        self.assertTrue(self.install(rope, state))
+        image = FakeTensor((1, 16, 1, 128, 128))
+        first = rope.forward(image)
+        self.assertEqual(rope.calls, 1)
+        self.assertIs(first[0], rope.forward(FakeTensor((2, 16, 1, 128, 128)))[0])
+        self.assertEqual(rope.calls, 1)
+        self.assertIsNot(first[0], rope.forward(image, fps=24)[0])
+        self.assertEqual(rope.calls, 2)
+        rope.h_ntk_factor = 1.05
+        rope.forward(image)
+        self.assertEqual(rope.calls, 3)
+        self.assertEqual(rope.calls, 3)  # current model parameters are part of the cache key
+
+    def test_disabled_gradient_or_cpu_does_not_cache(self):
+        rope = FakeRotaryPositionEmbedding()
+        state = {"active": True}
+        self.install(rope, state)
+        cpu = FakeTensor((1, 16, 1, 128, 128), device=FakeDevice("cpu"))
+        with patch.object(anima_rope, "_forward_safe", return_value=True):
+            rope.forward(cpu)
+            rope.forward(cpu)
+            self.assertEqual(rope.calls, 2)
+        with patch.object(anima_rope, "_forward_safe", return_value=False):
+            rope.forward(FakeTensor((1, 16, 1, 128, 128)))
+            rope.forward(FakeTensor((1, 16, 1, 128, 128)))
+            self.assertEqual(rope.calls, 4)
+        state["active"] = False
+        with patch.object(anima_rope, "_forward_safe", return_value=True):
+            rope.forward(FakeTensor((1, 16, 1, 128, 128)))
+            self.assertEqual(rope.calls, 5)
+
+    def test_cache_is_bounded_and_old_entry_evicted(self):
+        rope = FakeRotaryPositionEmbedding()
+        self.install(rope)
+        with patch.object(anima_rope, "_forward_safe", return_value=True):
+            image1 = FakeTensor((1, 16, 1, 128, 128))
+            image2 = FakeTensor((1, 16, 1, 64, 64))
+            image3 = FakeTensor((1, 16, 1, 96, 96))
+            rope.forward(image1)
+            rope.forward(image2)
+            rope.forward(image3)
+            self.assertEqual(rope.calls, 3)
+            rope.forward(image1)
+            self.assertEqual(rope.calls, 4)  # max two entries
+            large = FakeTensor((1, 16, 1, 512, 512))
+            rope.forward(large)
+            rope.forward(large)
+            self.assertEqual(rope.calls, 6)  # >16 MiB, never cached
 
 class AnimaRoPEWiringTests(unittest.TestCase):
     def test_configuration_default_and_environment(self):
