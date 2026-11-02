@@ -127,6 +127,45 @@ class AnimaKernelPolicyTests(unittest.TestCase):
         self.assertEqual(self.install(pipeline).installed, 0)
 
 
+class AnimaWiringTests(unittest.TestCase):
+    def test_settings_default_and_validation(self):
+        from pathlib import Path
+        from lumacarve_server.config import Settings
+
+        self.assertEqual(Settings(data_dir=Path(".")).anima_triton, "off")
+        with self.assertRaisesRegex(ValueError, "anima_triton"):
+            Settings(data_dir=Path("."), anima_triton="auto")
+        with patch.dict("os.environ", {"LUMACARVE_ANIMA_TRITON": "experimental"}):
+            self.assertEqual(Settings.from_env().anima_triton, "experimental")
+
+    def test_adapter_build_is_opt_in_and_keeps_original_pipeline_default(self):
+        from pathlib import Path
+        from types import ModuleType
+        from unittest.mock import Mock
+        from lumacarve_server.adapters.anima import AnimaAdapter
+        from lumacarve_server.config import Settings
+
+        fake_torch = ModuleType("torch")
+        fake_torch.cuda = SimpleNamespace(is_available=lambda: True, is_bf16_supported=lambda: True)
+        fake_torch.bfloat16, fake_torch.float16 = object(), object()
+        pipe = SimpleNamespace(load_components=Mock(), to=Mock(), transformer=SimpleNamespace(transformer_blocks=[]))
+        fake_diffusers = ModuleType("diffusers")
+        fake_diffusers.ComponentsManager = Mock()
+        fake_diffusers.ModularPipeline = SimpleNamespace(from_pretrained=Mock(return_value=pipe))
+
+        with patch.dict("sys.modules", {"torch": fake_torch, "diffusers": fake_diffusers}):
+            with patch.object(anima_adaln, "install_anima_adaln_triton", return_value=SimpleNamespace(installed=0, reason="fixture")) as install:
+                adapter = AnimaAdapter(Settings(data_dir=Path("."), inference_offload="full"))
+                loaded, _ = adapter._build(Path("/fixture/anima"))
+                self.assertIs(loaded, pipe)
+                install.assert_not_called()
+                adapter = AnimaAdapter(Settings(data_dir=Path("."), inference_offload="full", anima_triton="experimental"))
+                loaded, _ = adapter._build(Path("/fixture/anima"))
+                self.assertIs(loaded, pipe)
+                install.assert_called_once_with(pipe)
+        self.assertEqual(pipe.to.call_count, 2)
+
+
 class AnimaTritonNumerics(unittest.TestCase):
     def test_cuda_equivalence(self):
         if importlib.util.find_spec("torch") is None or importlib.util.find_spec("triton") is None:
@@ -146,6 +185,11 @@ class AnimaTritonNumerics(unittest.TestCase):
                     scale = torch.randn((batch, cond_tokens, channels), device="cuda", dtype=dtype) * .3
                     expected = torch.nn.functional.layer_norm(x, (channels,), eps=1e-6) * (1 + scale) + shift
                     actual = anima_adaln.fused_ada_layer_norm(x, shift, scale, 1e-6)
+                    # chunk(3) returns non-contiguous views on B>1; no extra copy should be necessary.
+                    packed = torch.randn((batch, cond_tokens, 3 * channels), device="cuda", dtype=dtype)
+                    shift_view, scale_view, _gate = packed.chunk(3, dim=-1)
+                    expected_view = torch.nn.functional.layer_norm(x, (channels,), eps=1e-6) * (1 + scale_view) + shift_view
+                    actual_view = anima_adaln.fused_ada_layer_norm(x, shift_view, scale_view, 1e-6)
                     if dtype == torch.float32:
                         rtol, atol = 2e-4, 2e-4
                     elif dtype == torch.float16:
@@ -153,6 +197,7 @@ class AnimaTritonNumerics(unittest.TestCase):
                     else:
                         rtol, atol = 2e-2, 3e-2
                     torch.testing.assert_close(actual, expected, rtol=rtol, atol=atol)
+                    torch.testing.assert_close(actual_view, expected_view, rtol=rtol, atol=atol)
 
 
 if __name__ == "__main__":
