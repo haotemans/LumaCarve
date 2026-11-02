@@ -128,6 +128,21 @@ class FfnPolicyTests(unittest.TestCase):
         self.assertTrue(hasattr(activation, "_lumacarve_ffn_original_forward"))
         self.assertEqual(self.install(pipe).installed, 0)
 
+    def test_triton_source_is_python_syntax_valid_and_never_autotunes(self):
+        # CI intentionally avoids importing optional Torch/Triton GPU modules.
+        # Still parse the exact kernel source and verify no runtime autotuning.
+        import ast
+
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "lumacarve_runtime"
+            / "kernels"
+            / "_anima_ffn_triton.py"
+        ).read_text(encoding="utf-8")
+        ast.parse(source)
+        self.assertNotIn("@triton.autotune", source)
+        self.assertNotIn("triton.testing.do_bench(", source)
+
     def test_missing_triton_never_modifies_ffn(self):
         pipe = self.make_pipe(1)
         with patch.object(anima_ffn, "_triton_available", return_value=False):
