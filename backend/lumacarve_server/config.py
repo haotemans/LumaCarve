@@ -31,6 +31,7 @@ class Settings:
     anima_model_path: Path | None = None
     anima_triton: str = "off"  # off | experimental; requires compatible CUDA and Triton
     anima_triton_rope: str = "off"  # off | experimental; fuse Anima Cosmos Q/K rotary
+    anima_triton_residual: str = "off"  # off | experimental; fuse gated attention/FFN residuals
     allow_model_download: bool = False
     download_region: str = "auto"   # auto | cn | global; no IP geolocation
 
@@ -49,6 +50,8 @@ class Settings:
             raise ValueError("anima_triton must be off or experimental")
         if self.anima_triton_rope not in ("off", "experimental"):
             raise ValueError("anima_triton_rope must be off or experimental")
+        if self.anima_triton_residual not in ("off", "experimental"):
+            raise ValueError("anima_triton_residual must be off or experimental")
         if not 1 <= self.port <= 65535:
             raise ValueError("Invalid HTTP port")
 
@@ -64,6 +67,7 @@ class Settings:
             inference_offload=os.environ.get("LUMACARVE_INFERENCE_OFFLOAD", "auto"),
             anima_triton=os.environ.get("LUMACARVE_ANIMA_TRITON", "off"),
             anima_triton_rope=os.environ.get("LUMACARVE_ANIMA_TRITON_ROPE", "off"),
+            anima_triton_residual=os.environ.get("LUMACARVE_ANIMA_TRITON_RESIDUAL", "off"),
             inference_backend=os.environ.get("LUMACARVE_INFERENCE_BACKEND", "disabled"),
             anima_model_path=(
                 Path(os.environ["LUMACARVE_ANIMA_MODEL_PATH"]).expanduser().resolve()
