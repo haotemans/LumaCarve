@@ -59,10 +59,8 @@ def _gated_residual(
 
 def launch(residual, gate, branch):
     """Run a single fused kernel for [B,S,C] and a broadcastable [B,1|S,C] gate."""
-    import torch
-
     batch, tokens, channels = residual.shape
-    result = torch.empty((batch, tokens, channels), dtype=residual.dtype, device=residual.device)
+    result = residual.new_empty((batch, tokens, channels))
     total = batch * tokens * channels
     _gated_residual[(triton.cdiv(total, 1024),)](
         residual,
