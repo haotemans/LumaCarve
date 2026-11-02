@@ -125,6 +125,23 @@ class AnimaRoPEPolicyTests(unittest.TestCase):
         self.assertIsInstance(attn2.get_processor(), FakeOriginalProcessor)
         self.assertEqual(self._install(pipe).installed, 0)
 
+    def test_install_adds_bounded_position_table_cache_only_to_compatible_rope(self):
+        rope = FakeRotaryPositionEmbedding()
+        attn = FakeAttention()
+        pipe = SimpleNamespace(transformer=SimpleNamespace(
+            rope=rope, transformer_blocks=[SimpleNamespace(attn1=attn)],
+        ))
+        with patch.object(anima_rope, "_triton_available", return_value=True), patch.object(
+            anima_rope, "_processor_class", return_value=FakeOriginalProcessor
+        ), patch.object(anima_rope, "_dispatch_attention_fn", return_value=Mock()), patch.object(
+            anima_rope, "_rotary_pos_embed_class", return_value=FakeRotaryPositionEmbedding
+        ):
+            report = anima_rope.install_anima_rope_triton(pipe)
+        self.assertEqual(report.installed, 1)
+        self.assertTrue(report.table_cache)
+        self.assertTrue(hasattr(rope, "_lumacarve_rope_original"))
+        self.assertEqual(self._install(pipe).installed, 0)
+
     def test_missing_triton_preserves_attention(self):
         attn = FakeAttention()
         pipe = SimpleNamespace(transformer=SimpleNamespace(transformer_blocks=[SimpleNamespace(attn1=attn)]))
