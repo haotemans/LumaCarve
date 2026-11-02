@@ -45,6 +45,7 @@ cd LumaCarve\backend
 | Anima Triton AdaLN-Zero 试验内核 | `lumacarve_runtime/kernels/anima_adaln.py` + `_anima_adaln_triton.py` | [20-anima-triton.md](docs/20-anima-triton.md) | `test_anima_triton.py` |
 | Anima Triton Q/K RoPE 试验内核 | `lumacarve_runtime/kernels/anima_rope.py` + `_anima_rope_triton.py` | [21-anima-triton-rope.md](docs/21-anima-triton-rope.md) | `test_anima_rope.py` |
 | Anima Triton Gated Residual 试验内核 | `lumacarve_runtime/kernels/anima_residual.py` + `_anima_residual_triton.py` | [22-anima-triton-residual.md](docs/22-anima-triton-residual.md) | `test_anima_residual.py` |
+| Anima Triton FFN Linear+GELU 候选 | `lumacarve_runtime/kernels/anima_ffn.py` + `_anima_ffn_triton.py` | [23-anima-triton-ffn.md](docs/23-anima-triton-ffn.md) | `test_anima_ffn.py` |
 | 输出图片 API | `lumacarve_server/routers/outputs.py` | [18-output-images.md](docs/18-output-images.md) | `test_outputs.py` |
 | Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
 | Python 包与路由打包 | `pyproject.toml` | [13-package-layout.md](docs/13-package-layout.md) | `test_packaging.py` |
