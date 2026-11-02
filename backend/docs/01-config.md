@@ -9,6 +9,7 @@
 - `LUMACARVE_ANIMA_TRITON=off|experimental`：默认 `off`。显式启用时仅在真实加载 Anima 后安装可回退的 Cosmos AdaLN-Zero 实验性 Triton Kernel，详见 [20-anima-triton.md](20-anima-triton.md)。
 - `LUMACARVE_ANIMA_TRITON_ROPE=off|experimental`：默认 `off`，独立于 AdaLN。仅在已加载 Anima 的 CUDA 推理中对兼容的 Cosmos Q/K RoPE 执行 Triton 融合；细节见 [21-anima-triton-rope.md](21-anima-triton-rope.md)。
 - `LUMACARVE_ANIMA_TRITON_RESIDUAL=off|experimental`：默认 `off`，仅在 Anima 的兼容 Cosmos Transformer Block 中加速 Attention/FFN 的 Gated Residual；不影响已有 AdaLN 和 RoPE 开关。参见 [22-anima-triton-residual.md](22-anima-triton-residual.md)。
+- `LUMACARVE_ANIMA_TRITON_FFN=off|experimental`：默认 `off`，只在 `LUMACARVE_INFERENCE_OFFLOAD=full` 模式下尝试 Anima 第一层 FFN Linear + 精确 GELU 融合（不覆盖 offload/hook 或 LoRA 模块）。详见 [23-anima-triton-ffn.md](23-anima-triton-ffn.md)。
 - \`LUMACARVE_ALLOW_MODEL_DOWNLOAD=0\` 默认拒绝联网下载；首次下载必须由用户显式开启并接受模型许可。
 - 默认文件上限 25 MiB、图像解码上限 4000 万像素、最大排队任务 16。
 
