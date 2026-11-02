@@ -59,3 +59,7 @@ CPU 单元测试通过可证明工作流转换、加载生命周期和保存行�
 
 
 真实输出可由 `GET /api/v1/outputs/{output_id}` 访问。源码与限制见 [18-output-images.md](18-output-images.md)，该 API 不对外暴露本地绝对路径。
+
+## 可选的 Triton AdaLN-Zero 加速
+
+可显式设置 `LUMACARVE_ANIMA_TRITON=experimental`，在真实加载 Diffusers Anima 后仅针对 Cosmos Transformer 的 AdaLN-Zero 调制路径安装可回退的融合内核。默认 `off` 不加载 Triton、不修改计算路径。实验优化仅支持推理前向；首次调用有 JIT 编译开销，尚无真实 GPU 的图像正确性或性能验收数据。详细代码、硬件兼容、数值测试和基准脚本见 [20-anima-triton.md](20-anima-triton.md)。
