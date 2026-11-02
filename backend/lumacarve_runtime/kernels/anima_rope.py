@@ -90,6 +90,11 @@ def _dispatch_attention_fn():
     return dispatch_attention_fn
 
 
+def _rotary_pos_embed_class():
+    from diffusers.models.transformers.transformer_cosmos import CosmosRotaryPosEmbed
+    return CosmosRotaryPosEmbed
+
+
 class _FusedCosmosSelfAttention:
     """Preserve the baseline processor contract while replacing only Q/K RoPE."""
 
@@ -183,10 +188,10 @@ def _install_rotary_table_cache(transformer: Any, state: dict[str, bool]) -> boo
     """
     rope = getattr(transformer, "rope", None)
     try:
-        from diffusers.models.transformers.transformer_cosmos import CosmosRotaryPosEmbed
+        rotary_cls = _rotary_pos_embed_class()
     except ImportError:
         return False
-    if type(rope) is not CosmosRotaryPosEmbed or hasattr(rope, "_lumacarve_rope_original"):
+    if type(rope) is not rotary_cls or hasattr(rope, "_lumacarve_rope_original"):
         return False
 
     original = type(rope).forward
