@@ -18,6 +18,10 @@ def _ada_layer_norm_modulate(
     channels: tl.constexpr,
     tokens: tl.constexpr,
     cond_tokens: tl.constexpr,
+    shift_stride_b: tl.constexpr,
+    shift_stride_s: tl.constexpr,
+    scale_stride_b: tl.constexpr,
+    scale_stride_s: tl.constexpr,
     eps: tl.constexpr,
     block: tl.constexpr,
 ):
@@ -34,13 +38,14 @@ def _ada_layer_norm_modulate(
     # Preserve the PyTorch reference's intermediate dtype rounding:
     # LayerNorm -> (1 + scale) -> multiply -> add shift.
     normed = ((x - mean) * rstd).to(x_ptr.dtype.element_ty)
+    batch = row // tokens
+    token = row % tokens
     if cond_tokens == 1:
-        cond_row = row // tokens
-    else:
-        cond_row = row
-    cond_offset = cond_row * channels + cols
-    scale = tl.load(scale_ptr + cond_offset, mask=mask, other=0).to(tl.float32)
-    shift = tl.load(shift_ptr + cond_offset, mask=mask, other=0).to(tl.float32)
+        token = 0
+    shift_offset = batch * shift_stride_b + token * shift_stride_s + cols
+    scale_offset = batch * scale_stride_b + token * scale_stride_s + cols
+    scale = tl.load(scale_ptr + scale_offset, mask=mask, other=0).to(tl.float32)
+    shift = tl.load(shift_ptr + shift_offset, mask=mask, other=0).to(tl.float32)
     scale_plus_one = (scale + 1.0).to(x_ptr.dtype.element_ty)
     multiplied = (normed.to(tl.float32) * scale_plus_one.to(tl.float32)).to(x_ptr.dtype.element_ty)
     result = (multiplied.to(tl.float32) + shift).to(x_ptr.dtype.element_ty)
@@ -55,7 +60,7 @@ def launch(x, shift, scale, eps: float):
     warps = 4 if block <= 4096 else 8
     _ada_layer_norm_modulate[(batch * tokens,)](
         x, shift, scale, output,
-        channels, tokens, shift.shape[1], eps, block,
+        channels, tokens, shift.shape[1], shift.stride(0), shift.stride(1), scale.stride(0), scale.stride(1), eps, block,
         num_warps=warps,
     )
     return output
