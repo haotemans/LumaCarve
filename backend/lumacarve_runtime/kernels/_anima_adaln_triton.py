@@ -16,12 +16,12 @@ def _ada_layer_norm_modulate(
     scale_ptr,
     out_ptr,
     channels: tl.constexpr,
-    tokens: tl.constexpr,
-    cond_tokens: tl.constexpr,
-    shift_stride_b: tl.constexpr,
-    shift_stride_s: tl.constexpr,
-    scale_stride_b: tl.constexpr,
-    scale_stride_s: tl.constexpr,
+    tokens,
+    cond_tokens,
+    shift_stride_b,
+    shift_stride_s,
+    scale_stride_b,
+    scale_stride_s,
     eps: tl.constexpr,
     block: tl.constexpr,
 ):
@@ -39,9 +39,7 @@ def _ada_layer_norm_modulate(
     # LayerNorm -> (1 + scale) -> multiply -> add shift.
     normed = ((x - mean) * rstd).to(x_ptr.dtype.element_ty)
     batch = row // tokens
-    token = row % tokens
-    if cond_tokens == 1:
-        token = 0
+    token = tl.where(cond_tokens == 1, 0, row % tokens)
     shift_offset = batch * shift_stride_b + token * shift_stride_s + cols
     scale_offset = batch * scale_stride_b + token * scale_stride_s + cols
     scale = tl.load(scale_ptr + scale_offset, mask=mask, other=0).to(tl.float32)
