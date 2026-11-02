@@ -113,6 +113,10 @@ def install_anima_residual_triton(pipeline: Any) -> AnimaResidualReport:
     for block in blocks:
         if type(block) is not block_type or hasattr(block, "_lumacarve_residual_original"):
             continue
+        # Never override a preexisting per-instance forward hook/wrapper
+        # installed by Accelerate, another extension, or the model provider.
+        if getattr(getattr(block, "forward", None), "__func__", None) is not type(block).forward:
+            continue
         if getattr(block, "before_proj", None) is not None or getattr(block, "after_proj", None) is not None:
             continue
         if not all(callable(getattr(block, name, None)) for name in ("norm1", "norm2", "norm3", "attn1", "attn2", "ff")):
@@ -139,6 +143,8 @@ def install_anima_residual_triton(pipeline: Any) -> AnimaResidualReport:
                 not state["active"]
                 or not _torch_inference_safe()
                 or controlnet_residual is not None
+                or getattr(self, "before_proj", None) is not None
+                or getattr(self, "after_proj", None) is not None
                 or kwargs
                 or getattr(hidden_states, "requires_grad", False)
                 or getattr(hidden_states, "ndim", None) != 3
