@@ -172,6 +172,44 @@ class AnimaRoPEPolicyTests(unittest.TestCase):
             self.assertEqual(fused.call_count, 1)
 
 
+class AnimaRoPEWiringTests(unittest.TestCase):
+    def test_configuration_default_and_environment(self):
+        from pathlib import Path
+        from lumacarve_server.config import Settings
+
+        self.assertEqual(Settings(data_dir=Path(".")).anima_triton_rope, "off")
+        self.assertEqual(Settings(data_dir=Path("."), anima_triton="experimental").anima_triton_rope, "off")
+        with self.assertRaisesRegex(ValueError, "anima_triton_rope"):
+            Settings(data_dir=Path("."), anima_triton_rope="auto")
+        with patch.dict("os.environ", {"LUMACARVE_ANIMA_TRITON_ROPE": "experimental"}):
+            self.assertEqual(Settings.from_env().anima_triton_rope, "experimental")
+
+    def test_anima_pipeline_build_wires_rope_only_when_enabled(self):
+        from pathlib import Path
+        from types import ModuleType
+        from lumacarve_server.adapters.anima import AnimaAdapter
+        from lumacarve_server.config import Settings
+
+        fake_torch = ModuleType("torch")
+        fake_torch.cuda = SimpleNamespace(is_available=lambda: True, is_bf16_supported=lambda: True)
+        fake_torch.bfloat16, fake_torch.float16 = object(), object()
+        fake_pipe = SimpleNamespace(load_components=Mock(), to=Mock())
+        fake_diffusers = ModuleType("diffusers")
+        fake_diffusers.ComponentsManager = Mock()
+        fake_diffusers.ModularPipeline = SimpleNamespace(from_pretrained=Mock(return_value=fake_pipe))
+
+        with patch.dict("sys.modules", {"torch": fake_torch, "diffusers": fake_diffusers}), patch.object(
+            anima_rope, "install_anima_rope_triton",
+            return_value=anima_rope.AnimaRoPEReport(1, "test"),
+        ) as install:
+            AnimaAdapter(Settings(data_dir=Path("."), inference_offload="full"))._build(Path("/fixture/anima"))
+            install.assert_not_called()
+            AnimaAdapter(Settings(
+                data_dir=Path("."), inference_offload="full", anima_triton_rope="experimental",
+            ))._build(Path("/fixture/anima"))
+            install.assert_called_once_with(fake_pipe)
+
+
 class AnimaRoPEGPUChecks(unittest.TestCase):
     def test_cuda_matches_cosmos_half_split_reference(self):
         if importlib.util.find_spec("torch") is None or importlib.util.find_spec("triton") is None:
