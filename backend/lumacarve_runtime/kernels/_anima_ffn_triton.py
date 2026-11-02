@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import triton
 import triton.language as tl
+from triton.language.extra import libdevice
 
 
 @triton.jit
@@ -63,7 +64,7 @@ def _linear_exact_gelu(
     projected = accumulator.to(x_ptr.dtype.element_ty).to(tl.float32)
     # Diffusers GELU(approximate="none") uses the erf definition, not tanh.
     activated = 0.5 * projected * (
-        1.0 + tl.extra.cuda.libdevice.erf(projected * 0.7071067811865476)
+        1.0 + libdevice.erf(projected * 0.7071067811865476)
     )
     output = activated.to(x_ptr.dtype.element_ty)
     tl.store(
