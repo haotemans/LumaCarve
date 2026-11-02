@@ -12,7 +12,10 @@ from __future__ import annotations
 import importlib.util
 import logging
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass
+from threading import Lock
+from types import MethodType
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -24,6 +27,7 @@ _DTYPES = frozenset(("torch.float16", "torch.bfloat16", "torch.float32"))
 class AnimaRoPEReport:
     installed: int
     reason: str
+    table_cache: bool = False
 
 
 def _compatible(q: Any, k: Any, cos: Any, sin: Any) -> bool:
@@ -170,6 +174,77 @@ class _FusedCosmosSelfAttention:
         return attn.to_out[1](result)
 
 
+def _install_rotary_table_cache(transformer: Any, state: dict[str, bool]) -> bool:
+    """Cache immutable FP32 Cosmos cos/sin per image shape, capped at 16 MiB.
+
+    The same table is recomputed on every denoising step in Diffusers. This
+    cache uses only Python metadata lookups on hits and no GPU monitoring or
+    background work. It is scoped to one loaded transformer instance.
+    """
+    rope = getattr(transformer, "rope", None)
+    try:
+        from diffusers.models.transformers.transformer_cosmos import CosmosRotaryPosEmbed
+    except ImportError:
+        return False
+    if type(rope) is not CosmosRotaryPosEmbed or hasattr(rope, "_lumacarve_rope_original"):
+        return False
+
+    original = type(rope).forward
+    size_limit = 16 * 1024 * 1024
+    cached_bytes = [0]
+    cache: OrderedDict[tuple, tuple[Any, Any, int]] = OrderedDict()
+    lock = Lock()
+
+    def cached_forward(self, hidden_states, fps=None):
+        if (
+            not state["active"] or not _forward_safe()
+            or getattr(getattr(hidden_states, "device", None), "type", None) != "cuda"
+            or getattr(hidden_states, "ndim", None) != 5
+        ):
+            return original(self, hidden_states, fps=fps)
+
+        _, _, frames, height, width = hidden_states.shape
+        # Anima uses static RoPE parameters, but include the signature to avoid
+        # returning stale tables if a caller changes a model's RoPE scaling.
+        config = (
+            tuple(self.patch_size), tuple(self.max_size), self.base_fps,
+            self.dim_h, self.dim_w, self.dim_t,
+            self.h_ntk_factor, self.w_ntk_factor, self.t_ntk_factor,
+        )
+        key = (str(hidden_states.device), frames, height, width, fps, config)
+        with lock:
+            hit = cache.get(key)
+            if hit is not None:
+                cache.move_to_end(key)
+                return hit[:2]
+
+        cos, sin = original(self, hidden_states, fps=fps)
+        # Memory metadata queries do not launch kernels. Never cache outputs
+        # with autograd enabled, on the wrong device, or above the budget.
+        if (
+            cos.device != hidden_states.device or sin.device != hidden_states.device
+            or str(cos.dtype) != "torch.float32" or str(sin.dtype) != "torch.float32"
+        ):
+            return cos, sin
+        entry_bytes = cos.numel() * cos.element_size() + sin.numel() * sin.element_size()
+        if entry_bytes > size_limit:
+            return cos, sin
+        with lock:
+            if key in cache:
+                cache.move_to_end(key)
+                return cache[key][:2]
+            while cache and (cached_bytes[0] + entry_bytes > size_limit or len(cache) >= 2):
+                _, discarded = cache.popitem(last=False)
+                cached_bytes[0] -= discarded[2]
+            cache[key] = (cos, sin, entry_bytes)
+            cached_bytes[0] += entry_bytes
+        return cos, sin
+
+    rope._lumacarve_rope_original = original
+    rope.forward = MethodType(cached_forward, rope)
+    return True
+
+
 def install_anima_rope_triton(pipeline: Any) -> AnimaRoPEReport:
     """Install only on loaded Anima attn1 self-attention blocks (explicit opt-in).
 
@@ -201,7 +276,10 @@ def install_anima_rope_triton(pipeline: Any) -> AnimaRoPEReport:
         attn.set_processor(_FusedCosmosSelfAttention(processor, state, dispatch))
         count += 1
 
+    table_cache = _install_rotary_table_cache(transformer, state) if count else False
     return AnimaRoPEReport(
-        count, "Experimental fused RoPE installed; first CUDA call JIT-compiles"
+        count,
+        "Experimental fused RoPE installed; first CUDA call JIT-compiles"
         if count else "No supported Cosmos self-attention processors found",
+        table_cache=table_cache,
     )
