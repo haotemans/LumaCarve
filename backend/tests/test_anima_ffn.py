@@ -59,6 +59,9 @@ class FakeDropout:
     def __init__(self, p=0):
         self.p = p
 
+    def __call__(self, value):
+        return value
+
 
 class FakeGELU:
     def __init__(self, *, approximate="none"):
@@ -70,6 +73,9 @@ class FakeGELU:
     def forward(self, x):
         self.calls += 1
         return self.proj(x)
+
+    def __call__(self, x):
+        return self.forward(x)
 
 
 class FakeFeedForward:
@@ -177,9 +183,13 @@ class FfnPolicyTests(unittest.TestCase):
         with patch.object(anima_ffn, "_inference_safe", return_value=True), patch.object(
             anima_ffn, "fused_ffn_linear_gelu"
         ) as fused:
-            ff.net[0].proj = object()  # Simulates future LoRA/offload replacement
+            class WrappedLinear(FakeLinear):
+                pass
+
+            ff.net[0].proj = WrappedLinear(1024, 4096)  # late LoRA-like replacement
             result = ff.net[0].forward(FakeTensor())
-            self.assertIsInstance(result, FakeTensor) if False else None
+            self.assertIsInstance(result, FakeTensor)
+            self.assertEqual(ff.net[0].calls, 1)
             fused.assert_not_called()
 
     def test_failure_disables_all_sites_after_one_attempt(self):
