@@ -253,3 +253,10 @@ source = ["backend/lumacarve_runtime/kernels/anima_rope.py", "backend/lumacarve_
 doc = "backend/docs/21-anima-triton-rope.md"
 tests = ["backend/tests/test_anima_rope.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "runtime.anima_residual_triton"
+source = ["backend/lumacarve_runtime/kernels/anima_residual.py", "backend/lumacarve_runtime/kernels/_anima_residual_triton.py", "tools/benchmark_anima_residual.py"]
+doc = "backend/docs/22-anima-triton-residual.md"
+tests = ["backend/tests/test_anima_residual.py"]
+verification = "backend-tests"
