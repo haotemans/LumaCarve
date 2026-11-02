@@ -112,6 +112,28 @@ class ResidualPolicyTests(unittest.TestCase):
         block.before_proj = object()
         self.assertEqual(self.install(pipe).installed, 0)
 
+    def test_installer_preserves_existing_forward_wrapper(self):
+        pipe = self.make_pipeline(blocks=1)
+        block = pipe.transformer.transformer_blocks[0]
+        # An extension/offload manager may already have installed its own
+        # instance-level hook; do not silently bypass that hook.
+        original_hook = Mock(return_value="external-hook")
+        block.forward = original_hook
+        self.assertEqual(self.install(pipe).installed, 0)
+        self.assertIs(block.forward, original_hook)
+        self.assertEqual(block.forward(FakeTensor(), "text", "time"), "external-hook")
+
+    def test_runtime_specialization_change_returns_to_original(self):
+        pipe = self.make_pipeline(blocks=1)
+        self.assertEqual(self.install(pipe).installed, 1)
+        block = pipe.transformer.transformer_blocks[0]
+        block.after_proj = object()
+        with patch.object(anima_residual, "_torch_inference_safe", return_value=True), patch.object(
+            anima_residual, "fused_gated_residual",
+        ) as fuse:
+            self.assertEqual(block.forward(FakeTensor(), "text", "time"), "original-forward")
+            fuse.assert_not_called()
+
     def test_three_branches_fused_without_changing_operators(self):
         pipe = self.make_pipeline(blocks=1)
         self.install(pipe)
