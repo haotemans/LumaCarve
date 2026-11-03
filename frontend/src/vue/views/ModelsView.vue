@@ -64,7 +64,7 @@ async function download(model: CatalogModel) {
           <div class="catalog-heading"><h3>{{model.title}}</h3><span v-if="model.id==='anima-base-1'&&provider==='huggingface'" class="mini-tag">首选</span></div>
           <div class="catalog-desc"><span>{{model.id}}</span><span>{{provider==='modelscope'?'魔搭':'Hugging Face'}}</span></div>
           <p class="catalog-license">{{model.license_note}}</p>
-          <button class="download-button" :disabled="!catalog.downloads_enabled || (downloading && ['running','queued'].includes(downloading.state))" @click="download(model)">
+          <button class="download-button" :disabled="!catalog.downloads_enabled || (!!downloading && ['running','queued'].includes(downloading.state))" @click="download(model)">
             <Download :size="16"/>{{catalog.downloads_enabled?'下载模型':'下载未启用'}}
           </button>
         </div>
