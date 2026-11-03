@@ -64,6 +64,21 @@ class ExecutionMonitorTests(unittest.TestCase):
             monitor.finish("does-not-exist")
         self.assertEqual(monitor.snapshot()["events"], [])
 
+    def test_hook_observation_retains_real_execution_timestamps(self):
+        monitor = ExecutionMonitor()
+        with monitor.bind_job("real-job"):
+            monitor.record_observation("dit", model_id="anima-base-1",
+                                       started_at=100.25, ended_at=101.5,
+                                       duration_ms=800.75, timing_source="cuda_events_sum",
+                                       calls=3)
+        event = monitor.snapshot()["events"][0]
+        self.assertEqual(event["job_id"], "real-job")
+        self.assertEqual(event["started_at"], 100.25)
+        self.assertEqual(event["ended_at"], 101.5)
+        self.assertEqual(event["duration_ms"], 800.75)
+        self.assertEqual(event["calls"], 3)
+        self.assertEqual(event["timing_source"], "cuda_events_sum")
+
     def test_event_history_is_bounded(self):
         monitor = ExecutionMonitor(max_events=3)
         for _ in range(8):
