@@ -251,7 +251,7 @@ verification = "frontend-build"
 id = "frontend.vue.studio"
 source = ["frontend/src/vue/views/StudioView.vue", "frontend/src/vue/stores/studio.ts"]
 doc = "frontend/src/vue/docs/studio.md"
-tests = []
+tests = ["frontend/scripts/studio-contract.test.mjs"]
 verification = "frontend-build"
 
 [[module]]
