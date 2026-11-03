@@ -60,6 +60,14 @@ jobs:
       - name: Bundle unsigned installer
         working-directory: frontend
         run: npm run desktop:build -- --bundles '${{ matrix.bundles }}'
+      - name: Verify Windows installer has no Authenticode signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem 'frontend/src-tauri/target/release/bundle/nsis' -Filter '*.exe' -File)
+          if ($installers.Count -ne 1) { throw "Expected exactly one NSIS installer, found $($installers.Count)" }
+          $signature = Get-AuthenticodeSignature -FilePath $installers[0].FullName
+          if ($signature.Status -ne 'NotSigned') { throw "Unsigned preview must be unsigned: $($signature.Status)" }
       - name: Upload Windows NSIS installer
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
@@ -85,6 +93,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - name: Download Windows and Linux installers
         uses: actions/download-artifact@v4
         with:
@@ -109,33 +118,20 @@ jobs:
           cd release-files
           sha256sum ./*.exe ./*.deb ./*.AppImage > SHA256SUMS.txt
           ls -lh
-      - name: Publish first unsigned desktop preview
+      - name: Publish v0.2.1 unsigned desktop preview
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: v0.2.0-desktop-preview.1
+          RELEASE_TAG: v0.2.1-desktop-preview.1
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists; do not replace its original tested binaries."
-            exit 0
+            echo "::error::Release $RELEASE_TAG already exists; refusing to replace tested artifacts"
+            exit 1
           fi
-          cat > release-notes.md <<'EOF'
-          ## LumaCarve 0.2.0 Desktop Preview 1
-
-          This is the first **unsigned, experimental** Tauri 2 + Vue 3 desktop build.
-
-          Downloads: Windows x64 NSIS installer (.exe), Linux x64 (.deb and .AppImage), and SHA256SUMS.txt.
-
-          Includes: Vue 3 workspace and bundled lightweight FastAPI core for local datasets, models, files and job metadata. User data is stored in the per-user application data directory.
-
-          **Not yet included:** PyTorch, CUDA/Triton, Anima weights, GPU inference worker or LoRA training. Do not expect GPU generation from this standalone installer.
-
-          **Important:** The Windows installer is unsigned and may trigger Windows SmartScreen. Linux AppImage may require FUSE. This preview has passed CI packaging, not interactive desktop/GPU QA.
-          EOF
           gh release create "$RELEASE_TAG" release-files/* \
             --target "$GITHUB_SHA" \
-            --title "LumaCarve v0.2.0 Desktop Preview 1" \
-            --notes-file release-notes.md \
+            --title "LumaCarve v0.2.1 Desktop Preview 1" \
+            --notes-file docs/releases/v0.2.1-desktop-preview.1.md \
             --prerelease
