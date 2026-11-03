@@ -4,11 +4,11 @@
 
 | 层级 | 当前已使用 | 规划或约束 |
 |---|---|---|
-| Web UI | React 18、TypeScript、Vite 6、Lucide | 保持 SPA；按需加载大型界面，不额外引入无必要的 UI 框架 |
-| 工作流编辑 | `@xyflow/react` 12 | Graph 为唯一工作流源，参数界面映射暴露字段；图结构序列化 `lumacarve.studio.workflow.v1` |
+| Web UI | Vue 3、Composition API、Pinia、Vue Router、TypeScript、Vite 6、Lucide | 单一 Vue SPA，兼容未来 Tauri 2；按需加载不同工作台 |
+| 工作流 | 内部 `lumacarve.studio.workflow.v1` JSON | 不向用户展示节点编辑器；Vue 参数控制更新同一份工作流数据 |
 | Backend API | Python 3.11+、FastAPI、Pydantic 2、Uvicorn | REST `/api/v1`；进度后续优先 SSE，双向控制用 REST；不在 API 启动时加载模型 |
 | 底层调度 | **Rust** + PyO3 绑定（逐步实现），原有 Python 队列为过渡回退 | Rust 负责图计划、任务队列决策、缓存签名和资源租约；Python/PyTorch 负责计算和 CUDA 同步；SQLite 负责持久化 |
-| 模型推理 | PyTorch、Diffusers、Transformers、Accelerate、Safetensors（已声明依赖） | **真实 Qwen/Anima/MOSS/Krea 适配器尚未实现**；每家族单独验证组件和编辑能力 |
+| 模型推理 | PyTorch、Diffusers、Transformers、Accelerate、Safetensors（已声明依赖） | **Anima 文字生成适配器和 API 已接线但未完成真实 GPU 验收**；其它家族仍待实现 |
 | LoRA 训练 | PEFT、Datasets 等（已声明依赖） | 训练精度默认优先 BF16；训练循环/优化器/检查点待接入 |
 | Attention | PyTorch SDPA、可选 FlashAttention / SageAttention（策略实现） | SDPA 回退；推理 vs 训练分开，不能仅凭包存在就认定兼容或提速 |
 | 模型与依赖下载 | ModelScope + Hugging Face；清华/CERNET 镜像（已实现部分） | 固定版本、来源隔离、校验完整性、断点续传；国内/国际明确选择 |
@@ -23,7 +23,7 @@
 1. **不复制基础模型**：多个 LoRA Adapter 共享一个 Base Model 实例。
 2. **驻留先于卸载**：如果能在 GPU 常驻且足够快，就不要每个采样步骤往返搬运 CPU/GPU。
 3. **计算缓存有边界**：文本编码缓存、VAE latent 缓存以模型版本、精度、预处理和输入内容生成键。
-4. **图形编辑与计算分离**：React Flow 只在 Graph 模式加载，参数模式不加载图形运行时，也不重复图状态。
+4. **图形编辑与计算分离**：Vue 公开页面只渲染必要表单/画布；Graph 仅为内部 JSON，不加载 React Flow。
 5. **不迷信注意力库**：FlashAttention / SageAttention 与 SDPA 比较真实峰值显存、延迟、图像质量和模型兼容。
 6. **8/16/24 GB GPU 为目标档位，不是硬件保证**：每个模型基于实测设置精度、分块、卸载阈值。
 
@@ -32,7 +32,7 @@
 - 不为本地单用户应用添加微服务、Kubernetes、Redis、Kafka 或 Celery。
 - 不为每个模型创建独立 Python 虚拟环境。
 - 不并行引入两个工作流引擎或两套参数状态。Rust 是目标执行调度核心，Python Graph 编译器只是迁移期兼容回退。
-- 桌面打包可以将来评估 Tauri / Python sidecar，但**目前不提前引入 Electron/Tauri 依赖**，先确保本地 WebUI 和推理闭环可用。
+- 计划使用 Tauri 2（Windows/Linux）共用 Vue WebUI；当前未把桌面发行物或 Python sidecar 集成构建完成。
 - 不在未实测前把 FP8、INT8 和大规模异步预取宣布为默认优化。
 
 ## 升级与依赖锁定

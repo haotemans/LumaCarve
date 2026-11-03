@@ -101,37 +101,9 @@ tests = ["backend/tests/test_downloads.py"]
 verification = "backend-tests"
 
 [[module]]
-id = "frontend.shell"
-source = ["frontend/src/App.tsx", "frontend/src/main.tsx"]
-doc = "frontend/README.md"
-tests = []
-verification = "frontend-build"
-
-[[module]]
-id = "frontend.image_studio.page"
-source = ["frontend/src/features/image-studio/ImageStudioPage.tsx"]
-doc = "frontend/src/features/image-studio/docs/ImageStudioPage.md"
-tests = []
-verification = "frontend-build"
-
-[[module]]
 id = "frontend.image_studio.workflow"
 source = ["frontend/src/features/image-studio/workflow.ts"]
 doc = "frontend/src/features/image-studio/docs/workflow.md"
-tests = []
-verification = "frontend-build"
-
-[[module]]
-id = "frontend.image_studio.graph"
-source = ["frontend/src/features/image-studio/GraphCanvas.tsx"]
-doc = "frontend/src/features/image-studio/docs/GraphCanvas.md"
-tests = []
-verification = "frontend-build"
-
-[[module]]
-id = "frontend.image_studio.styles"
-source = ["frontend/src/features/image-studio/image-studio.css"]
-doc = "frontend/src/features/image-studio/docs/image-studio-css.md"
 tests = []
 verification = "frontend-build"
 
@@ -269,12 +241,36 @@ tests = ["backend/tests/test_anima_ffn.py"]
 verification = "backend-tests"
 
 [[module]]
+id = "frontend.shell"
+source = ["frontend/src/main.ts", "frontend/src/vue/App.vue", "frontend/src/vue/router.ts", "frontend/src/vue/styles.css", "frontend/src/vue/env.d.ts"]
+doc = "frontend/README.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.vue.studio"
+source = ["frontend/src/vue/views/StudioView.vue", "frontend/src/vue/stores/studio.ts"]
+doc = "frontend/src/vue/docs/studio.md"
+tests = ["frontend/scripts/studio-contract.test.mjs"]
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.vue.workspaces"
+source = ["frontend/src/vue/views/TrainingView.vue", "frontend/src/vue/views/GalleryView.vue", "frontend/src/vue/views/ModelsView.vue", "frontend/src/vue/views/DatasetsView.vue", "frontend/src/vue/views/TasksView.vue", "frontend/src/vue/views/SystemView.vue"]
+doc = "frontend/src/vue/docs/workspaces.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
+id = "frontend.vue.api"
+source = ["frontend/src/vue/api.ts"]
+doc = "frontend/src/vue/docs/api.md"
+tests = []
+verification = "frontend-build"
+
+[[module]]
 id = "frontend.image_studio.runtime_status"
-source = [
-  "frontend/src/features/image-studio/runtime.ts",
-  "frontend/src/features/image-studio/RuntimeStatusPanel.tsx",
-  "frontend/scripts/runtime-contract.test.mjs",
-]
+source = ["frontend/src/features/image-studio/runtime.ts", "frontend/scripts/runtime-contract.test.mjs"]
 doc = "frontend/src/features/image-studio/docs/runtime-status.md"
 tests = ["frontend/scripts/runtime-contract.test.mjs"]
 verification = "frontend-build"

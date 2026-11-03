@@ -12,8 +12,8 @@
 Anima Base 1.0 已作为默认初始模型（当前仅 `create`），Qwen 等仍保留在模型选择中但不宣称已接入后端。切换模式不会创建第二套 Graph 状态，后端实际执行能力仍以 API 为准。
 
 
-首个可执行的 Anima 默认 Graph 模板直接暴露 `prompt`、`negativePrompt`、`steps`、`seed`、`aspect`、`guidance`；Anima 不支持透明背景，默认隐藏 `transparent`，用户仍可在 Graph 中检查 `output` 节点。任何暴露更改都写入同一个 Graph `exposed` 数组，不生成额外状态。
+首个可执行的 Anima 默认 Graph 模板直接暴露 `prompt`、`negativePrompt`、`steps`、`seed`、`aspect`、`guidance`；Anima 不支持透明背景，默认隐藏 `transparent`；原始内部 Graph JSON 中仍存在 `output` 节点，但 Vue 用户界面不提供节点编辑。任何暴露更改都写入同一个 Graph `exposed` 数组，不生成额外状态。
 
 ## 公开工作台不显示节点图
 
-旧版 GraphCanvas 源码保留在仓库中，但目前不在 ImageStudioPage 挂载或动态导入。界面仅保留可编辑参数、预设 JSON 的导入导出与恢复默认。工作流仍是服务器唯一接受的 `lumacarve.studio.workflow.v1` 结构；仅更改展示方式，没有修改 JSON schema、任务执行顺序或 LoRA 数组语义。
+旧版 React GraphCanvas 源码已移除。公开 Vue 界面仅保留可编辑参数、预设 JSON 的导入导出与恢复默认。工作流仍是服务器唯一接受的 `lumacarve.studio.workflow.v1` 结构；仅更改展示方式，没有修改 JSON schema、任务执行顺序或 LoRA 数组语义。

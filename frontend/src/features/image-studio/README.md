@@ -1,20 +1,11 @@
-# Image Studio · 图像工作室
+# Image Studio · 框架无关模块
 
-LumaCarve 采用**参数式创作界面 + 内部 Graph 数据结构**。概念边界见 [GLOSSARY.md](GLOSSARY.md)。Graph JSON 仍是 API 的唯一执行配置来源，但用户不需要查看或操作节点图。公开界面以模型/LoRA/参数/预览/任务状态为主，尽可能降低 React 对 CPU 和 GPU 的占用。
+此目录现在只保留可由 Vue 3 前端复用的 TypeScript：`workflow.ts`（唯一的 Graph JSON 数据模型和预设校验）、`api.ts`（本地真实作业/PNG）、`runtime.ts`（严格只读状态解析）。
 
-| 源码 | 文档 | 职责 |
-|---|---|---|
-| `ImageStudioPage.tsx` | [ImageStudioPage.md](docs/ImageStudioPage.md) | 参数式工作台、输入素材、结果及任务控制 |
-| `workflow.ts` | [workflow.md](docs/workflow.md) | 唯一可序列化 Graph JSON，服务端校验兼容 |
-| `api.ts` | [api.md](docs/api.md) | Anima 作业提交、状态、取消、真实 PNG 输出 |
-| `runtime.ts` + `RuntimeStatusPanel.tsx` | [runtime-status.md](docs/runtime-status.md) | 严格读取只读状态，无 GPU 探测/自动轮询 |
-| `image-studio.css` | [image-studio-css.md](docs/image-studio-css.md) | 响应式轻量参数 UI 和状态面板 |
-| `GraphCanvas.tsx`（保留） | [GraphCanvas.md](docs/GraphCanvas.md) | 旧节点编辑器代码，仅内部备用；不在工作台导入 |
+公开图形化工作台已经迁移到 `frontend/src/vue/views/StudioView.vue`，其说明见 [Vue Studio](../../vue/docs/studio.md)。**没有 React、React Flow 或 GraphCanvas 的运行时代码。**
 
-## 功能真实性
+现有 `lumacarve.studio.workflow.v1` 与服务端 `backend/lumacarve_server/workflows.py` 相互兼容；迁移没有改变执行图协议。
 
-- Anima Base 1.0 文字生成已接入本地 FastAPI/SQLite 作业和真实 PNG 输出，但仍需用户自行安装完整权重及兼容 CUDA，未进行 GPU 实测。
-- Qwen 等模型、图像编辑和训练仍处于前端能力预设/后端开发阶段；不显示假的成功结果。
-- `GET /api/v1/runtime` 提供配置状态，不代表 GPU 已运行；`auto` CPU 卸载并非尚未实现的 AMEP 智能自动均衡；Triton 实验开关不等于经过测试的性能提升。
+文档：[工作流 JSON](docs/workflow.md) · [API](docs/api.md) · [Runtime](docs/runtime-status.md) · [术语](GLOSSARY.md)。
 
-验证命令：`cd frontend && npm run test:runtime && npm run build`。后端测试：`python -m unittest discover -s backend/tests -v`。
+测试：`cd frontend && npm run test && npm run build`。

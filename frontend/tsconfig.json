@@ -8,18 +8,24 @@
       "DOM.Iterable"
     ],
     "module": "ESNext",
-    "skipLibCheck": true,
     "moduleResolution": "Bundler",
+    "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
     "strict": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "types": [
+      "vite/client"
+    ],
+    "jsx": "preserve"
   },
   "include": [
-    "src",
+    "src/main.ts",
+    "src/vue/**/*.ts",
+    "src/vue/**/*.vue",
+    "src/vue/**/*.d.ts",
     "vite.config.ts"
   ]
 }
