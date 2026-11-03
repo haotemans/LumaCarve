@@ -13,6 +13,16 @@ const studio = useStudioStore();
 const showNegative = ref(false);
 const presetFile = ref<HTMLInputElement | null>(null);
 const feedback = ref('');
+interface LocalReference { id: string; url: string; name: string; width: number; height: number }
+const referenceImages = ref<LocalReference[]>([]);
+const selectedReferenceId = ref<string | null>(null);
+const sourceInput = ref<HTMLInputElement | null>(null);
+const maskCanvas = ref<HTMLCanvasElement | null>(null);
+const maskDirty = ref(false);
+const brushSize = ref(30);
+const eraseMask = ref(false);
+const isPainting = ref(false);
+const activeReference = computed(() => referenceImages.value.find(x => x.id === selectedReferenceId.value) ?? referenceImages.value[0] ?? null);
 const ratios = [
   { value: '1:1', label: '1:1', w: 21, h: 21 },
   { value: '4:3', label: '4:3', w: 25, h: 19 },
@@ -22,9 +32,13 @@ const ratios = [
   { value: '3:2', label: '3:2', w: 27, h: 18 },
   { value: '2:3', label: '2:3', w: 18, h: 27 },
 ];
-const previewRatio = computed(() => studio.selected
-  ? `${studio.selected.width} / ${studio.selected.height}`
-  : studio.aspect.replace(':', ' / '));
+const previewRatio = computed(() =>
+  studio.workflow.intent !== 'create' && activeReference.value
+    ? `${activeReference.value.width} / ${activeReference.value.height}`
+    : studio.selected
+      ? `${studio.selected.width} / ${studio.selected.height}`
+      : studio.aspect.replace(':', ' / ')
+);
 const busy = computed(() => !!studio.activeJobId || studio.jobState === 'submitting');
 const statusText = computed(() => {
   switch (studio.jobState) {
@@ -44,7 +58,10 @@ onMounted(() => {
   if (!studio.runtime && !studio.runtimeLoading) void studio.refreshRuntime();
   pollTimer = window.setInterval(() => { if (studio.activeJobId) void studio.pollActive(); }, 1500);
 });
-onUnmounted(() => { if (pollTimer !== undefined) window.clearInterval(pollTimer); });
+onUnmounted(() => {
+  if (pollTimer !== undefined) window.clearInterval(pollTimer);
+  referenceImages.value.forEach(item => URL.revokeObjectURL(item.url));
+});
 
 function fieldInput(event: Event) { return (event.target as HTMLInputElement).value; }
 function setSteps(event: Event) { studio.edit('sampler', 'steps', Math.max(1, Math.min(150, Math.round(Number(fieldInput(event)) || 1)))); }
@@ -71,11 +88,73 @@ function setIntent(intent: StudioIntent) {
   if (!studio.model.intents.includes(intent)) return;
   studio.setIntent(intent);
 }
-function setModel(event: Event) { studio.setModel(fieldInput(event)); }
+function setModel(event: Event) {
+  studio.setModel(fieldInput(event));
+  referenceImages.value.forEach(item => URL.revokeObjectURL(item.url));
+  referenceImages.value = []; selectedReferenceId.value = null; maskDirty.value = false;
+}
 function updateLora(id: string, field: 'name' | 'strength' | 'enabled', value: string | number | boolean) {
   if (field === 'strength') studio.editLora(id, { strength: Math.max(-2, Math.min(2, Number(value))) });
   else if (field === 'name') studio.editLora(id, { name: String(value) });
   else studio.editLora(id, { enabled: Boolean(value) });
+}
+async function addReferenceImages(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []); input.value = '';
+  for (const file of files) {
+    if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 25 * 1024 * 1024) continue;
+    if (referenceImages.value.length >= studio.model.maxReferences) break;
+    try {
+      const decoded = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / Math.max(decoded.width, decoded.height));
+      const width = Math.max(1, Math.round(decoded.width * scale));
+      const height = Math.max(1, Math.round(decoded.height * scale));
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) { decoded.close(); throw new Error('Canvas 无法初始化'); }
+      context.drawImage(decoded, 0, 0, width, height);
+      decoded.close();
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', .9));
+      if (!blob) throw new Error('参考图预览失败');
+      const id = 'ref-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+      referenceImages.value.push({ id, name:file.name, width, height, url:URL.createObjectURL(blob) });
+      selectedReferenceId.value = id;
+      maskDirty.value = false;
+    } catch (err) { feedback.value = err instanceof Error ? err.message : '图片无法打开'; }
+  }
+}
+function removeReference(id: string) {
+  const found = referenceImages.value.find(item => item.id === id);
+  if (found) URL.revokeObjectURL(found.url);
+  referenceImages.value = referenceImages.value.filter(item => item.id !== id);
+  if (selectedReferenceId.value === id) selectedReferenceId.value = referenceImages.value[0]?.id ?? null;
+  maskDirty.value = false;
+}
+function maskPoint(event: PointerEvent, canvas: HTMLCanvasElement) {
+  const rect=canvas.getBoundingClientRect();
+  return { x:(event.clientX-rect.left)/rect.width*canvas.width, y:(event.clientY-rect.top)/rect.height*canvas.height };
+}
+function paint(event: PointerEvent, start: boolean) {
+  const canvas=maskCanvas.value;const ctx=canvas?.getContext('2d');if(!canvas||!ctx)return;
+  const p=maskPoint(event,canvas);
+  ctx.lineWidth=brushSize.value*canvas.width/Math.max(1,canvas.getBoundingClientRect().width);
+  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.globalCompositeOperation=eraseMask.value?'destination-out':'source-over';
+  ctx.strokeStyle='rgba(255,255,255,.92)';
+  if(start){isPainting.value=true;canvas.setPointerCapture(event.pointerId);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+.01,p.y+.01);}
+  else if(isPainting.value){ctx.lineTo(p.x,p.y);}
+  if(isPainting.value){ctx.stroke();maskDirty.value=true;}
+}
+function maskDown(event: PointerEvent) { paint(event,true); }
+function maskMove(event: PointerEvent) { if (isPainting.value) paint(event,false); }
+function maskUp() { isPainting.value=false; }
+function clearMask() { const c=maskCanvas.value;c?.getContext('2d')?.clearRect(0,0,c.width,c.height);maskDirty.value=false; }
+function exportMask() {
+  const c=maskCanvas.value;if(!c||!maskDirty.value){feedback.value='先在原图上绘制蒙版';return;}
+  c.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='lumacarve-mask.png';a.click();
+    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  },'image/png');
 }
 function start() { feedback.value = ''; void studio.submit(); }
 </script>
