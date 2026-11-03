@@ -76,3 +76,66 @@ jobs:
             frontend/src-tauri/target/release/bundle/deb/*
             frontend/src-tauri/target/release/bundle/appimage/*
           if-no-files-found: error
+  publish-preview:
+    name: Publish desktop preview to GitHub Releases
+    needs: bundle
+    # Installer publishing is deliberately impossible from pull requests.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows and Linux installers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: LumaCarve-*
+          path: release-artifacts
+      - name: Verify both platforms and prepare checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' windows < <(find release-artifacts/LumaCarve-Windows-NSIS -type f -name '*.exe' -print0)
+          mapfile -d '' debs < <(find release-artifacts/LumaCarve-Linux-deb-AppImage -type f -name '*.deb' -print0)
+          mapfile -d '' appimages < <(find release-artifacts/LumaCarve-Linux-deb-AppImage -type f -name '*.AppImage' -print0)
+          if [[ ${#windows[@]} -ne 1 || ${#debs[@]} -ne 1 || ${#appimages[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one NSIS .exe, one .deb and one .AppImage from the same commit"
+            find release-artifacts -type f -print
+            exit 1
+          fi
+          mkdir -p release-files
+          cp -- "${windows[0]}" release-files/
+          cp -- "${debs[0]}" release-files/
+          cp -- "${appimages[0]}" release-files/
+          cd release-files
+          sha256sum ./*.exe ./*.deb ./*.AppImage > SHA256SUMS.txt
+          ls -lh
+      - name: Publish first unsigned desktop preview
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v0.2.0-desktop-preview.1
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; do not replace its original tested binaries."
+            exit 0
+          fi
+          cat > release-notes.md <<'EOF'
+          ## LumaCarve 0.2.0 Desktop Preview 1
+
+          This is the first **unsigned, experimental** Tauri 2 + Vue 3 desktop build.
+
+          Downloads: Windows x64 NSIS installer (.exe), Linux x64 (.deb and .AppImage), and SHA256SUMS.txt.
+
+          Includes: Vue 3 workspace and bundled lightweight FastAPI core for local datasets, models, files and job metadata. User data is stored in the per-user application data directory.
+
+          **Not yet included:** PyTorch, CUDA/Triton, Anima weights, GPU inference worker or LoRA training. Do not expect GPU generation from this standalone installer.
+
+          **Important:** The Windows installer is unsigned and may trigger Windows SmartScreen. Linux AppImage may require FUSE. This preview has passed CI packaging, not interactive desktop/GPU QA.
+          EOF
+          gh release create "$RELEASE_TAG" release-files/* \
+            --target "$GITHUB_SHA" \
+            --title "LumaCarve v0.2.0 Desktop Preview 1" \
+            --notes-file release-notes.md \
+            --prerelease
