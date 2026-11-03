@@ -324,3 +324,6 @@
   .is-empty-canvas-symbol{width:56px;height:56px;border-radius:16px}
   .is-empty-canvas strong{font-size:13px}
 }
+
+/* Image generation is GPU-intensive; decorative blurred blobs are suppressed. */
+.lc-shell.lc-low-gpu .aura-blob{display:none}
