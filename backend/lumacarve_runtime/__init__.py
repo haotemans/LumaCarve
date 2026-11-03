@@ -6,6 +6,7 @@ from .graph import ExecutionPlan, InvalidWorkflow, WorkflowNode, compile_workflo
 from .rust_bridge import compile_preferred, scheduler_backend
 from .residency import (
     InsufficientMemory,
+    BaseModelBusy, ReleaseNotVerified,
     ModelBackend,
     ModelResidencyManager,
     ResidencySnapshot,
@@ -17,6 +18,6 @@ __all__ = [
     "compile_preferred", "scheduler_backend",
     "BudgetEstimate", "ComponentSpec", "MemoryBudget", "preflight",
     "run_plan", "ExecutionPlan", "InvalidWorkflow", "WorkflowNode",
-    "compile_workflow", "InsufficientMemory", "ModelBackend",
+    "compile_workflow", "InsufficientMemory", "BaseModelBusy", "ReleaseNotVerified", "ModelBackend",
     "ModelResidencyManager", "ResidencySnapshot", "Tier",
 ]
