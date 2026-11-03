@@ -474,3 +474,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .training-dataset-preview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:10px}
 .training-dataset-preview img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:var(--surface-soft);border:1px solid var(--line)}
 .training-dataset-empty{display:flex;align-items:center;gap:7px;margin-top:10px;color:var(--sub);font-size:11px}
+
+/* === Monitor controls: compact defaults, detailed data on demand === */
+.monitor-toolbar{align-items:center;flex-wrap:wrap}
+.monitor-controls{flex-wrap:wrap;justify-content:flex-end}
+.monitor-controls .mode-segments{padding:3px}
+.monitor-controls .mode-segments button{padding:7px 12px}
+.monitor-device-row{margin-bottom:12px;display:flex;justify-content:flex-end}
+.monitor-split{font-size:11px;font-weight:550;color:#98a5b9}
+.monitor-meter{width:100%;height:7px;min-height:7px;border-radius:10px;background:#edf0f8;overflow:hidden}
+.monitor-meter>div{height:100%;background:#7e74d8;border-radius:10px;transition:width .18s ease}
+.monitor-note{display:flex;align-items:flex-start;gap:8px;color:#8190a8;font-size:11px;line-height:1.6;margin:0 0 16px}
+.monitor-note svg{flex-shrink:0}
+.monitor-expanded{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.monitor-details{min-height:240px}
+.monitor-history{height:142px;display:flex;align-items:flex-end;gap:3px;padding:12px 8px 0;background:linear-gradient(to top,#f5f6ff,transparent);border-radius:10px}
+.monitor-history-column{flex:1;min-width:3px;max-width:28px;background:#887ee2;border-radius:4px 4px 0 0}
+.monitor-hint{font-size:10px;color:#97a4b6;display:block;margin-top:12px}
+@media(max-width:1000px){.monitor-expanded{grid-template-columns:1fr}}
+@media(max-width:600px){.monitor-toolbar{align-items:stretch}.monitor-controls{justify-content:flex-start}.monitor-controls .subtle-button{padding:8px}.monitor-details{min-height:0}}

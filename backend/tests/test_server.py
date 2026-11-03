@@ -68,6 +68,18 @@ class ServerTests(unittest.TestCase):
                 self.assertFalse(snapshot["optimization"]["validated_on_gpu"])
                 self.assertIsNone(snapshot["gpu"]["available"])
 
+    def test_telemetry_is_optional_and_device_index_bounded(self):
+        with tempfile.TemporaryDirectory() as temp:
+            with TestClient(create_app(Settings(data_dir=Path(temp)))) as client:
+                result = client.get("/api/v1/telemetry?device=16")
+                self.assertEqual(result.status_code, 422)
+                result = client.get("/api/v1/telemetry")
+                self.assertEqual(result.status_code, 200)
+                payload = result.json()
+                self.assertIn(payload["status"], ("ok", "unavailable"))
+                self.assertEqual(payload["scope"], "physical_device")
+                self.assertIn("used_bytes", payload["gpu"])
+
     def test_local_origin_only(self):
         with tempfile.TemporaryDirectory() as temp:
             with TestClient(create_app(Settings(data_dir=Path(temp)))) as client:

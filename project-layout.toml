@@ -302,3 +302,17 @@ source = ["frontend/src-tauri/src/main.rs", "frontend/src-tauri/build.rs", "fron
 doc = "docs/architecture/adr/0002-tauri2-sidecar.md"
 tests = []
 verification = "frontend-build"
+
+[[module]]
+id = "server.telemetry"
+source = ["backend/lumacarve_server/telemetry.py"]
+doc = "docs/architecture/08-flexible-telemetry.md"
+tests = ["backend/tests/test_telemetry.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "frontend.telemetry"
+source = ["frontend/src/features/image-studio/telemetry.ts"]
+doc = "docs/architecture/08-flexible-telemetry.md"
+tests = []
+verification = "frontend-build"

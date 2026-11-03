@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .datasets import DatasetStore
+from .telemetry import GpuTelemetrySampler
 from lumacarve_runtime.rust_bridge import scheduler_backend
 from .model_downloads import ModelDownloadManager
 from .routers.downloads import router as downloads_router
@@ -53,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api.state.settings = settings
     api.state.model_downloads = ModelDownloadManager(settings)
     api.state.datasets = DatasetStore(settings)
+    api.state.telemetry = GpuTelemetrySampler()
     api.include_router(workflow_router)
     api.include_router(models_router)
     api.include_router(assets_router)
@@ -92,6 +94,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @api.get("/api/v1/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "lumacarve", "version": "0.1.0"}
+
+    @api.get("/api/v1/telemetry")
+    def telemetry(device: int = 0) -> dict[str, object]:
+        from fastapi import HTTPException
+        if device < 0 or device > 15:
+            raise HTTPException(status_code=422, detail="GPU device index out of range")
+        return api.state.telemetry.sample(device)
 
     @api.get("/api/v1/runtime")
     def runtime() -> dict[str, object]:
