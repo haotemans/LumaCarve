@@ -239,6 +239,9 @@ class JobQueue:
         self._owner = LocalQueueLock(store.path.with_name('gpu-worker.lock'))
         self.queue_backend = "not_started"
         self.fatal_error: str | None = None
+        self._maintenance = threading.Event()
+        self._maintenance_done = threading.Event()
+        self._maintenance_error: str | None = None
 
     def start(self) -> None:
         if self._thread is not None:
@@ -266,10 +269,38 @@ class JobQueue:
                 raise RuntimeError("GPU worker is still active; refusing to release queue ownership")
         self._owner.release()
 
+    def unload_idle_model(self, timeout: float = 30.0) -> dict[str, Any]:
+        """Serialize CUDA cleanup on the existing worker thread, not an API thread."""
+        with self._lock:
+            if self.fatal_error or self._thread is None or not self._thread.is_alive():
+                raise EngineUnavailable("GPU worker is unavailable")
+            if self._maintenance.is_set() or self.store.count_active() > 0:
+                raise EngineUnavailable("Wait for queued and running GPU jobs before unloading")
+            if not callable(getattr(self.adapter, "unload_idle", None)):
+                raise EngineUnavailable("Current inference adapter has no safe unload implementation")
+            self._maintenance_error = None
+            self._maintenance_done.clear()
+            self._maintenance.set()
+            self._wakeup.set()
+        if not self._maintenance_done.wait(timeout=timeout):
+            raise EngineUnavailable("Unload is still in progress; do not load another model")
+        if self._maintenance_error:
+            raise EngineUnavailable(self._maintenance_error)
+        return getattr(self.adapter, "residency")
+
+    def residency(self) -> dict[str, Any]:
+        value = getattr(self.adapter, "residency", None)
+        return value if isinstance(value, dict) else {
+            "model_id": None, "path": None, "state": "unknown",
+            "verified_release": False, "error": None,
+        }
+
     def submit(self, workflow: dict[str, Any], inputs: dict[str, Any], priority: str = "normal") -> dict[str, Any]:
         with self._lock:
             if self.fatal_error is not None:
                 raise EngineUnavailable(f"GPU scheduler unavailable: {self.fatal_error}")
+            if self._maintenance.is_set():
+                raise EngineUnavailable("Model maintenance in progress; try again after unload")
             if not self.adapter.ready:
                 raise EngineUnavailable("GPU inference adapter is not configured; job was not enqueued")
             if self.store.count_active() >= self.max_active:
@@ -294,6 +325,16 @@ class JobQueue:
         while not self._shutdown.is_set():
             self._wakeup.wait(timeout=0.25)
             self._wakeup.clear()
+            if self._maintenance.is_set():
+                try:
+                    self.adapter.unload_idle()
+                except Exception as exc:
+                    self._maintenance_error = f"{type(exc).__name__}: {exc}"[:500]
+                    self.fatal_error = self._maintenance_error
+                finally:
+                    self._maintenance.clear()
+                    self._maintenance_done.set()
+                continue
             # Never consume persisted work until a real adapter is ready.
             if not self.adapter.ready:
                 continue
