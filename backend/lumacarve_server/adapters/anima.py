@@ -296,7 +296,13 @@ class AnimaAdapter:
         if self._pipeline is not None and self._loaded_path != model_dir:
             self.unload_idle()
         if self._pipeline is None:
-            self._pipeline, self._torch = self._build(model_dir)
+            try:
+                self._pipeline, self._torch = self._build(model_dir)
+            except Exception:
+                # A partially initialized CUDA model may still have references
+                # inside Diffusers after an exception. Block until restart.
+                self._load_error = "Model construction failed; restart GPU executor before another load"
+                raise
             self._loaded_path = model_dir
             self._active_loras = ()
         pipe = self._pipeline
