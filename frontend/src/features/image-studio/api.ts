@@ -2,7 +2,7 @@
 /** Local image generation API. No mock job completion or synthesized images. */
 import type { StudioWorkflow } from './workflow';
 
-const API_ORIGIN = (
+export const API_ORIGIN = (
   (import.meta.env.VITE_LUMACARVE_API_URL as string | undefined)?.trim() ||
   'http://127.0.0.1:8000'
 ).replace(/\/$/, '');
