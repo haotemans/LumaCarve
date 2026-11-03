@@ -10,6 +10,7 @@ import json
 import os
 import gc
 import threading
+from contextlib import nullcontext
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -133,6 +134,15 @@ class AnimaAdapter:
         self._loaded_path: Path | None = None
         self._active_loras: tuple[tuple[str, float], ...] = ()
         self._load_error: str | None = None
+        self.monitor: Any | None = None
+
+    def _phase(self, stage: str, *, memory: bool = False):
+        if self.monitor is None:
+            return nullcontext()
+        return self.monitor.phase(
+            stage, model_id=MODEL_ID,
+            torch_provider=(lambda: self._torch) if memory else None,
+        )
 
     @property
     def residency(self) -> dict[str, Any]:
@@ -147,6 +157,10 @@ class AnimaAdapter:
 
     def unload_idle(self) -> dict[str, Any]:
         """Called by the single queue worker at an idle boundary only."""
+        with self._phase("model_unload"):
+            return self._unload_idle_impl()
+
+    def _unload_idle_impl(self) -> dict[str, Any]:
         if self._pipeline is None:
             return self.residency
         torch = self._torch
@@ -297,7 +311,8 @@ class AnimaAdapter:
             self.unload_idle()
         if self._pipeline is None:
             try:
-                self._pipeline, self._torch = self._build(model_dir)
+                with self._phase("model_load"):
+                    self._pipeline, self._torch = self._build(model_dir)
             except Exception:
                 # A partially initialized CUDA model may still have references
                 # inside Diffusers after an exception. Block until restart.
@@ -308,7 +323,8 @@ class AnimaAdapter:
         pipe = self._pipeline
         torch = self._torch
         try:
-            self._apply_loras(pipe, request.loras)
+            with self._phase("lora_update", memory=True):
+                self._apply_loras(pipe, request.loras)
         except Exception:
             # An interrupted LoRA update must never poison the next request.
             self._load_error = "LoRA adapter update failed; GPU executor restart required"
@@ -322,16 +338,17 @@ class AnimaAdapter:
         guider.guidance_scale = request.guidance
         generator = torch.Generator(device="cpu").manual_seed(request.seed)
 
-        with torch.inference_mode():
-            images = pipe(
-                prompt=request.prompt,
-                negative_prompt=request.negative_prompt,
-                height=request.height,
-                width=request.width,
-                num_inference_steps=request.steps,
-                generator=generator,
-            ).images
-        torch.cuda.synchronize()
+        with self._phase("inference", memory=True):
+            with torch.inference_mode():
+                images = pipe(
+                    prompt=request.prompt,
+                    negative_prompt=request.negative_prompt,
+                    height=request.height,
+                    width=request.width,
+                    num_inference_steps=request.steps,
+                    generator=generator,
+                ).images
+            torch.cuda.synchronize()
         if cancel.is_set():
             raise InterruptedError("Anima generation cancelled; result was not published")
         if len(images) != 1 or not isinstance(images[0], Image.Image):
@@ -340,14 +357,15 @@ class AnimaAdapter:
         output_file = self.settings.outputs_dir / f"{output_id}.png"
         output_file.parent.mkdir(parents=True, exist_ok=True)
         temp = output_file.with_suffix(".tmp")
-        try:
-            images[0].save(temp, format="PNG")
-            if cancel.is_set():
-                raise InterruptedError("Anima generation cancelled before image publication")
-            os.replace(temp, output_file)
-        finally:
-            if temp.exists():
-                temp.unlink()
+        with self._phase("output_save"):
+            try:
+                images[0].save(temp, format="PNG")
+                if cancel.is_set():
+                    raise InterruptedError("Anima generation cancelled before image publication")
+                os.replace(temp, output_file)
+            finally:
+                if temp.exists():
+                    temp.unlink()
         return {
             "output_id": output_id,
             "model_id": MODEL_ID,

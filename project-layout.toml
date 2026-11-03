@@ -316,3 +316,10 @@ source = ["frontend/src/features/image-studio/telemetry.ts"]
 doc = "docs/architecture/08-flexible-telemetry.md"
 tests = []
 verification = "frontend-build"
+
+[[module]]
+id = "server.execution_monitor"
+source = ["backend/lumacarve_server/execution_monitor.py"]
+doc = "docs/architecture/09-execution-timeline.md"
+tests = ["backend/tests/test_execution_monitor.py"]
+verification = "backend-tests"

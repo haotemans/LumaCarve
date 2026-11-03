@@ -493,3 +493,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .monitor-hint{font-size:10px;color:#97a4b6;display:block;margin-top:12px}
 @media(max-width:1000px){.monitor-expanded{grid-template-columns:1fr}}
 @media(max-width:600px){.monitor-toolbar{align-items:stretch}.monitor-controls{justify-content:flex-start}.monitor-controls .subtle-button{padding:8px}.monitor-details{min-height:0}}
+
+/* Real worker timeline. Pure CSS; event records never invent component metrics. */
+.monitor-timeline-panel{grid-column:1/-1}
+.execution-timeline{display:flex;flex-direction:column;gap:0}
+.execution-event{display:flex;align-items:stretch;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.execution-event:last-child{border-bottom:0}
+.execution-dot{margin-top:5px;width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#9faabd}
+.execution-completed{background:#50a89b}.execution-running{background:#796de0}
+.execution-failed{background:#d16c75}.execution-cancelled{background:#b3a46b}
+.execution-content{min-width:0;flex:1}
+.execution-event-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;color:#44516c}
+.execution-event-head strong{font-size:12px}
+.execution-status{font-size:10px;color:#7f8a9e}
+.execution-duration{margin-left:auto;font-variant-numeric:tabular-nums;color:#685bd8;font-size:11px;font-weight:750}
+.execution-event-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:5px;color:#94a0b3;font-size:10px;overflow-wrap:anywhere}
+.component-phase-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.component-phase-item{border:1px solid var(--line);border-radius:11px;padding:15px 11px;display:flex;flex-direction:column;gap:8px;background:#f8f9fd}
+.component-phase-item strong{font-size:12px;color:#42516e}
+.component-phase-item span{font-size:10px;color:#98a2b3}
+@media(max-width:550px){.component-phase-grid{grid-template-columns:1fr}.execution-duration{margin-left:0}}

@@ -18,6 +18,7 @@ from lumacarve_server.adapters.anima import (
     AnimaAdapter, MODEL_ID, SIZES, compile_anima_request,
     find_anima_snapshot,
 )
+from lumacarve_server.execution_monitor import ExecutionMonitor
 from lumacarve_server.app import create_app
 from lumacarve_server.config import Settings
 from test_workflows import sample
@@ -133,6 +134,24 @@ class AnimaTests(unittest.TestCase):
                 self.assertTrue(target.is_file())
                 with Image.open(target) as image:
                     self.assertEqual(image.size, SIZES["1:1"])
+
+    def test_anima_exposes_actual_worker_phase_events(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(data_dir=Path(tmp))
+            settings.ensure_dirs()
+            install_dummy_snapshot(settings)
+            adapter = AnimaAdapter(settings)
+            monitor = ExecutionMonitor()
+            adapter.monitor = monitor
+            with patch.object(adapter, "_build", return_value=(FakePipeline(), FakeTorch)):
+                with monitor.bind_job("inference-task"):
+                    adapter.run(make_workflow(), {}, threading.Event())
+            events = monitor.snapshot()["events"]
+            stages = {event["stage"] for event in events}
+            self.assertTrue({"model_load", "lora_update", "inference", "output_save"}.issubset(stages))
+            self.assertTrue(all(event["job_id"] == "inference-task" for event in events))
+            self.assertFalse(any(event["stage"] in ("te", "vae", "dit") for event in events))
+            self.assertTrue(all(event["duration_ms"] is not None for event in events))
 
     def test_multi_lora_load_does_not_duplicate_base_model(self):
         with tempfile.TemporaryDirectory() as tmp:
