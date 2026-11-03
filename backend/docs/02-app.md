@@ -27,3 +27,15 @@ py -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 ## Anima 可选模型执行
 
 `LUMACARVE_INFERENCE_BACKEND=anima` 时，API 在 lifespan 创建轻量 `AnimaAdapter`，仅检查完整本地 ModularPipeline 目录与依赖是否已安装；首次提交并领取生成任务后才导入 Torch、初始化 CUDA 和加载模型。`GET /api/v1/runtime` 同时报告 `configured_engine` 与可用的 `engine`，GPU 信息依然标记未测量。详细信息见 [17-anima-adapter.md](17-anima-adapter.md)。
+
+## Runtime Snapshot：真实状态，不伪造 GPU 遥测
+
+`GET /api/v1/runtime` 仅收集现有 Python Settings、单队列状态和本地模型路径/依赖存在性，不会导入 Torch、调用 CUDA 或启动基准测试。
+
+- `configured_engine`：用户指定的推理后端，`engine`：本地文件与依赖检查后的后端选择；**都不等于 GPU 已加载或已经成功出图**。
+- `gpu.measured=false`、`gpu.available=null`：GPU 没有被此端点探测；`null` 表示未知，不是“没有 GPU”。
+- `inference_offload`：当前基础模型卸载选择（`auto | full | model_cpu`）。`memory_planner.adaptive="not_implemented"` 表示之前讨论的 AMEP 智能预测式资源规划器还没有实际接入；不能把现有 Diffusers 自动 CPU 卸载叫做 AMEP。
+- `optimization.state="configured_only"` 与 `optimization.validated_on_gpu=false`：`optimization.anima.adaln/rope/residual/ffn` 的 `off|experimental` 仅表示 **环境配置**，并非 Triton Kernel 已经被实际安装、编译、使用或证明更快。
+- 因为普通页面只需在进入工作室时读取一次，不需要实时频繁查询 GPU 显存。
+
+前端由 `frontend/src/features/image-studio/runtime.ts` 严格验证这一结构，并通过 `RuntimeStatusPanel.tsx` 只读展示。实际状态刷新由用户主动触发；不为展示面板采集额外 GPU 性能数据。
