@@ -33,6 +33,30 @@ class ExecutorTests(unittest.TestCase):
             self.assertEqual(supervisor.residency["state"], "unloaded")
             self.assertEqual(supervisor.residency["executor"]["state"], "stopped")
 
+    def test_failed_os_termination_never_loses_process_ownership(self):
+        class Unkillable:
+            pid = 1337
+            def is_alive(self):
+                return True
+            def join(self, timeout=None):
+                pass
+            def terminate(self):
+                pass
+            def kill(self):
+                pass
+
+        supervisor = GpuExecutorSupervisor(Settings(), ExecutionMonitor())
+        process = Unkillable()
+        supervisor._process = process
+        supervisor._state = "running"
+        with self.assertRaisesRegex(RuntimeError, "did not terminate"):
+            supervisor._terminate()
+        self.assertIs(supervisor._process, process)
+        self.assertEqual(supervisor._state, "failed")
+        with self.assertRaisesRegex(RuntimeError, "did not terminate"):
+            supervisor._start()
+        self.assertIs(supervisor._process, process)
+
     def test_idle_unload_terminates_child_context(self):
         with tempfile.TemporaryDirectory() as tmp:
             supervisor = GpuExecutorSupervisor(Settings(data_dir=Path(tmp)), ExecutionMonitor())
