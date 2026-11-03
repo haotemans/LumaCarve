@@ -1,9 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
-import { Activity, ArrowUpRight, Cpu, HardDrive, Info, RefreshCw, Settings2, ShieldCheck, Zap } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { Activity, ArrowUpRight, Cpu, HardDrive, Info, RefreshCw, Settings2, ShieldCheck, Zap, Pause, Play, Thermometer, Gauge } from 'lucide-vue-next';
 import { useStudioStore } from '../stores/studio';
 import { API_ORIGIN } from '../api';
+import { fetchTelemetry } from '../../features/image-studio/telemetry';
+import type { TelemetrySample } from '../../features/image-studio/telemetry';
+
 const studio = useStudioStore();
+const displayMode = ref<'simple'|'detailed'>('simple');
+const intervalSeconds = ref(3);
+const deviceIndex = ref(0);
+const paused = ref(false);
+const reading = ref<TelemetrySample | null>(null);
+const history = ref<{ time: number; used: number | null; load: number | null }[]>([]);
+const monitorError = ref('');
+const sampleBusy = ref(false);
+let timer: ReturnType<typeof setInterval> | undefined;
+let controller: AbortController | undefined;
 const kernels = [
   { key: 'adaln' as const, name: 'AdaLN Fusion', desc: '归一化与调制' },
   { key: 'rope' as const, name: 'RoPE Fusion', desc: 'Q/K 旋转位置编码' },
@@ -12,49 +25,148 @@ const kernels = [
 ];
 const engineLabel = computed(() => studio.runtime?.engine === 'anima' ? 'Anima 资源就绪'
   : studio.runtimeError ? '本地 API 未连接' : '尚未配置推理引擎');
-onMounted(() => { if(!studio.runtime) void studio.refreshRuntime(); });
+const gpu = computed(() => reading.value?.gpu);
+const percent = computed(() => gpu.value?.used_bytes !== null && gpu.value?.used_bytes !== undefined
+  && gpu.value?.total_bytes ? Math.min(100, 100 * gpu.value.used_bytes / gpu.value.total_bytes) : null);
+const formatBytes = (bytes: number | null | undefined) => bytes === null || bytes === undefined ? '—' : (bytes / (1024 ** 3)).toFixed(2) + ' GiB';
+const formatReading = (value: number | null | undefined, unit: string) => value === null || value === undefined ? '—' : value + unit;
+const updatedAt = computed(() => reading.value?.sampled_at ? new Date(reading.value.sampled_at * 1000).toLocaleTimeString() : '未采集');
+const activeCount = computed(() => (studio.runtime?.queue?.running ?? 0) + (studio.runtime?.queue?.queued ?? 0));
+const visibleHistory = computed(() => history.value.slice(-30));
+function stop() {
+  if (timer !== undefined) clearInterval(timer);
+  timer = undefined;
+  controller?.abort();
+  controller = undefined;
+  sampleBusy.value = false;
+}
+async function sample() {
+  if (paused.value || document.hidden || sampleBusy.value) return;
+  sampleBusy.value = true;
+  const current = new AbortController();
+  controller = current;
+  try {
+    const [next] = await Promise.all([fetchTelemetry(deviceIndex.value, current.signal), studio.refreshRuntime(current.signal)]);
+    if (current.signal.aborted) return;
+    reading.value = next;
+    monitorError.value = next.status === 'ok' ? '' : (next.reason ?? 'GPU 监控不可用');
+    if (next.status === 'ok' && next.sampled_at) {
+      history.value.push({ time: next.sampled_at, used: next.gpu.used_bytes, load: next.gpu.utilization_percent });
+      history.value = history.value.slice(-120);
+    }
+  } catch (error) {
+    if (!current.signal.aborted) monitorError.value = error instanceof Error ? error.message : '采样失败';
+  } finally {
+    if (controller === current) controller = undefined;
+    sampleBusy.value = false;
+  }
+}
+function restart() {
+  stop();
+  if (!paused.value) {
+    void sample();
+    timer = setInterval(() => { void sample(); }, intervalSeconds.value * 1000);
+  }
+}
+function visibilityChange() {
+  if (document.hidden) {
+    stop();
+  } else {
+    restart();
+  }
+}
+watch([intervalSeconds, paused, deviceIndex], () => {
+  if (deviceIndex.value !== reading.value?.device_index) history.value = [];
+  restart();
+});
+onMounted(() => { restart(); document.addEventListener('visibilitychange', visibilityChange); });
+onUnmounted(() => { stop(); document.removeEventListener('visibilitychange', visibilityChange); });
 </script>
 <template>
   <div class="system-view">
-    <div class="utility-bar"><span class="count-indicator"><Activity :size="15"/>本地运行环境 · 只读状态</span>
-      <button class="subtle-button" :disabled="studio.runtimeLoading" @click="() => studio.refreshRuntime()"><RefreshCw :size="16"/>手动刷新</button>
+    <div class="utility-bar monitor-toolbar">
+      <span class="count-indicator"><Activity :size="15"/>本地资源监控 · 设备级数据</span>
+      <div class="utility-actions monitor-controls">
+        <div class="mode-segments" role="group" aria-label="监控模式">
+          <button :class="{active:displayMode==='simple'}" :aria-pressed="displayMode==='simple'" @click="displayMode='simple'">简洁</button>
+          <button :class="{active:displayMode==='detailed'}" :aria-pressed="displayMode==='detailed'" @click="displayMode='detailed'">详细</button>
+        </div>
+        <label class="simple-select">间隔
+          <select v-model.number="intervalSeconds" aria-label="监控刷新间隔">
+            <option :value="2">2秒</option><option :value="3">3秒</option><option :value="5">5秒</option><option :value="10">10秒</option>
+          </select>
+        </label>
+        <button class="subtle-button" :aria-pressed="paused" @click="paused=!paused">
+          <Play v-if="paused" :size="15"/><Pause v-else :size="15"/>{{paused?'继续':'暂停'}}
+        </button>
+        <button class="subtle-button" :disabled="sampleBusy || paused" @click="sample"><RefreshCw :size="15"/>刷新</button>
+      </div>
+    </div>
+    <div v-if="reading?.devices.length && reading.devices.length > 1" class="monitor-device-row">
+      <label class="simple-select">监控设备
+        <select v-model.number="deviceIndex" aria-label="选择 GPU">
+          <option v-for="device in reading.devices" :key="device.index" :value="device.index">{{device.index}} · {{device.name}}</option>
+        </select>
+      </label>
     </div>
     <div class="system-summary">
-      <section class="system-tile panel"><div class="system-tile-icon blue"><Cpu :size="21"/></div><span>推理引擎</span><strong>{{engineLabel}}</strong><small>不代表 GPU 已加载</small></section>
-      <section class="system-tile panel"><div class="system-tile-icon purple"><HardDrive :size="21"/></div><span>GPU 显存</span><strong>—</strong><small>未采集实时数据</small></section>
-      <section class="system-tile panel"><div class="system-tile-icon cyan"><Zap :size="21"/></div><span>显存策略</span><strong>{{studio.runtime?.offload || '未知'}}</strong><small>非 AMEP 智能均衡</small></section>
+      <section class="system-tile panel"><div class="system-tile-icon blue"><Cpu :size="21"/></div><span>引擎 / 活动任务</span><strong>{{engineLabel}}</strong><small>{{activeCount}} 项排队或执行</small></section>
+      <section class="system-tile panel">
+        <div class="system-tile-icon purple"><HardDrive :size="21"/></div><span>GPU 显存（整卡）</span>
+        <strong>{{formatBytes(gpu?.used_bytes)}} <span class="monitor-split">/ {{formatBytes(gpu?.total_bytes)}}</span></strong>
+        <div class="monitor-meter" :aria-label="percent === null ? '显存未知' : '显存占用 '+Math.round(percent)+'%'"><div :style="{width:(percent??0)+'%'}"/></div>
+        <small>{{gpu?.name ?? '设备未知'}} · 非仅本应用显存</small>
+      </section>
+      <section class="system-tile panel"><div class="system-tile-icon cyan"><Gauge :size="21"/></div><span>GPU 利用率</span><strong>{{formatReading(gpu?.utilization_percent, '%')}}</strong><small>NVML 采样 · {{updatedAt}}</small></section>
     </div>
+    <div v-if="monitorError" class="inline-notice" role="status">{{monitorError}}。可能未安装可选 NVML 依赖，或 NVIDIA 驱动不支持。</div>
+    <div class="monitor-note"><Info :size="15"/>数据采样可暂停；页面隐藏时停止刷新。GPU 指标为整张显卡的 NVML 结果，不等于 LumaCarve 独占使用量。未采集不显示估算值。</div>
     <div v-if="studio.runtime?.queue" class="system-queue-overview panel">
-      <span>真实任务队列</span>
+      <span>任务队列</span>
       <div class="system-queue-counter"><strong>{{studio.runtime.queue.running}}</strong><small>运行中</small></div>
       <div class="system-queue-counter"><strong>{{studio.runtime.queue.queued}}</strong><small>等待中</small></div>
-      <div class="system-queue-counter"><strong>{{studio.runtime.queue.capacity}}</strong><small>队列容量</small></div>
+      <div class="system-queue-counter"><strong>{{studio.runtime.queue.capacity}}</strong><small>容量</small></div>
       <RouterLink to="/tasks" class="subtle-button">查看任务</RouterLink>
     </div>
-    <div class="system-details-grid">
-      <section class="panel system-detail">
-        <div class="panel-heading"><div class="panel-title"><ShieldCheck :size="18"/><h2>Triton 实验配置</h2></div><span class="mini-tag">EXPERIMENTAL</span></div>
+    <div v-if="displayMode==='detailed'" class="monitor-expanded">
+      <section class="panel monitor-details">
+        <div class="panel-heading"><div class="panel-title"><Activity :size="18"/><h2>采样历史</h2></div><span class="mini-tag">{{visibleHistory.length}} / 30</span></div>
+        <div v-if="visibleHistory.length" class="monitor-history" aria-label="最近显存占用趋势">
+          <div v-for="(item,index) in visibleHistory" :key="index" class="monitor-history-column"
+            :title="new Date(item.time*1000).toLocaleTimeString()+' · '+formatBytes(item.used)"
+            :style="{height:(gpu?.total_bytes && item.used !== null ? Math.max(3, Math.min(100, 100*item.used/gpu.total_bytes)) : 3)+'%'}"/>
+        </div>
+        <div v-else class="empty-inline">没有可用采样历史</div>
+        <small class="monitor-hint">最近 30 个有效样本，仅在本页面内存中保存，不写入磁盘。</small>
+      </section>
+      <section class="panel monitor-details">
+        <div class="panel-heading"><div class="panel-title"><Thermometer :size="18"/><h2>设备传感器</h2></div></div>
+        <dl class="system-specs">
+          <div><dt>GPU 温度</dt><dd>{{formatReading(gpu?.temperature_c,'°C')}}</dd></div>
+          <div><dt>功率</dt><dd>{{formatReading(gpu?.power_w,' W')}}</dd></div>
+          <div><dt>显存占比</dt><dd>{{formatReading(percent === null ? null : Math.round(percent),'%')}}</dd></div>
+          <div><dt>显存释放策略</dt><dd>{{studio.runtime?.offload ?? '未知'}}</dd></div>
+        </dl>
+      </section>
+      <section class="panel monitor-details">
+        <div class="panel-heading"><div class="panel-title"><ShieldCheck :size="18"/><h2>Triton 配置</h2></div><span class="mini-tag">EXPERIMENTAL</span></div>
         <div class="kernel-cards">
-          <div v-for="kernel in kernels" :key="kernel.key" class="kernel-card">
-            <div class="kernel-card-icon"><Zap :size="17"/></div>
+          <div v-for="kernel in kernels" :key="kernel.key" class="kernel-card"><div class="kernel-card-icon"><Zap :size="17"/></div>
             <div><strong>{{kernel.name}}</strong><span>{{kernel.desc}}</span></div>
-            <span class="kernel-mode" :class="{on:studio.runtime?.kernels[kernel.key]==='experimental'}">
-              {{studio.runtime?.kernels[kernel.key]==='experimental'?'实验配置':studio.runtime?.kernels[kernel.key]==='off'?'关闭':'未知'}}
-            </span>
+            <span class="kernel-mode" :class="{on:studio.runtime?.kernels[kernel.key]==='experimental'}">{{studio.runtime?.kernels[kernel.key] === 'experimental' ? '实验配置' : studio.runtime?.kernels[kernel.key] === 'off' ? '关闭' : '未知'}}</span>
           </div>
         </div>
-        <div class="system-note"><Info :size="16"/>配置状态不表示内核正在运行，也不代表已验证加速。</div>
       </section>
-      <section class="panel system-detail">
+      <section class="panel monitor-details">
         <div class="panel-heading"><div class="panel-title"><Settings2 :size="18"/><h2>本地 API</h2></div></div>
         <dl class="system-specs">
           <div><dt>API 地址</dt><dd class="text-break">{{API_ORIGIN}}</dd></div>
-          <div><dt>GPU 检测</dt><dd>{{studio.runtime?.gpuMeasured?'已测量':'未采集'}}</dd></div>
-          <div><dt>自适应显存管理</dt><dd>尚未接入</dd></div>
-          <div><dt>优化验证</dt><dd>{{studio.runtime?.verifiedOnGPU?'已验证':'尚未验证'}}</dd></div>
+          <div><dt>GPU 监控来源</dt><dd>{{reading?.source ?? '未连接'}}</dd></div>
+          <div><dt>GPU 测量</dt><dd>{{reading?.status === 'ok' ? 'NVML 设备级' : '未采集'}}</dd></div>
+          <div><dt>智能显存调度</dt><dd>尚未全部接入</dd></div>
         </dl>
         <div v-if="studio.runtimeError" class="inline-error" role="alert">{{studio.runtimeError}}</div>
-        <RouterLink to="/models" class="outline-link">检查模型资源 <ArrowUpRight :size="16"/></RouterLink>
+        <RouterLink to="/models" class="outline-link">查看模型驻留 <ArrowUpRight :size="16"/></RouterLink>
       </section>
     </div>
   </div>
