@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
-import { Activity, ArrowUpRight, Cpu, HardDrive, Info, RefreshCw, ShieldCheck, Zap } from 'lucide-vue-next';
+import { Activity, ArrowUpRight, Cpu, HardDrive, Info, RefreshCw, Settings2, ShieldCheck, Zap } from 'lucide-vue-next';
 import { useStudioStore } from '../stores/studio';
 import { API_ORIGIN } from '../api';
 const studio = useStudioStore();
