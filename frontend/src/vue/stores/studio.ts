@@ -35,7 +35,10 @@ export const useStudioStore = defineStore('studio', () => {
     const values = loraNode.value?.params.loras;
     return Array.isArray(values) ? values as LoRAEntry[] : [];
   });
-  const selected = computed(() => history.value.find(o => o.outputId === selectedOutputId.value) ?? history.value[0] ?? null);
+  const selected = computed(() => {
+    const matches = history.value.filter(o => o.modelId === modelId.value);
+    return matches.find(o => o.outputId === selectedOutputId.value) ?? matches[0] ?? null;
+  });
   const canSubmit = computed(() => modelId.value === 'anima-base-1' && workflow.value.intent === 'create' && !!prompt.value.trim() && !activeJobId.value && jobState.value !== 'submitting');
 
   function edit(kind: 'prompt' | 'sampler' | 'model' | 'lora', field: FieldId, value: FieldValue) {
@@ -49,6 +52,7 @@ export const useStudioStore = defineStore('studio', () => {
     const promptPart = next.nodes.find(node => node.kind === 'prompt');
     if (promptPart) { promptPart.params.prompt = priorPrompt; promptPart.params.negativePrompt = priorNegative; }
     workflow.value = next;
+    selectedOutputId.value = null;
   }
   function setIntent(intent: StudioIntent) {
     if (!model.value.intents.includes(intent)) return;
