@@ -20,6 +20,7 @@ from PIL import Image
 
 from ..config import Settings
 from ..jobs import EngineUnavailable
+from ..component_monitor import ComponentForwardProfiler, component_residency
 from ..workflows import validate_workflow
 
 MODEL_ID = "anima-base-1"
@@ -135,6 +136,8 @@ class AnimaAdapter:
         self._active_loras: tuple[tuple[str, float], ...] = ()
         self._load_error: str | None = None
         self.monitor: Any | None = None
+        self._components: list[dict[str, Any]] = []
+        self._phase_status = {key: "instrumentation_not_connected" for key in ("te", "vae", "dit")}
 
     def _phase(self, stage: str, *, memory: bool = False):
         if self.monitor is None:
@@ -153,6 +156,7 @@ class AnimaAdapter:
             "state": "loaded" if self._pipeline is not None else "unloaded",
             "verified_release": self._load_error is None,
             "error": self._load_error,
+            "components": [dict(item) for item in self._components],
         }
 
     def unload_idle(self) -> dict[str, Any]:
@@ -174,6 +178,9 @@ class AnimaAdapter:
         self._loaded_path = None
         self._active_loras = ()
         self._torch = None
+        self._components = component_residency(None)
+        if self.monitor is not None:
+            self.monitor.update_components(self._components, self._phase_status)
         del pipe
         gc.collect()
         torch.cuda.empty_cache()
@@ -320,6 +327,9 @@ class AnimaAdapter:
                 raise
             self._loaded_path = model_dir
             self._active_loras = ()
+            self._components = component_residency(self._pipeline)
+            if self.monitor is not None:
+                self.monitor.update_components(self._components, self._phase_status)
         pipe = self._pipeline
         torch = self._torch
         try:
@@ -338,17 +348,28 @@ class AnimaAdapter:
         guider.guidance_scale = request.guidance
         generator = torch.Generator(device="cpu").manual_seed(request.seed)
 
+        profiler = ComponentForwardProfiler(torch, pipe)
         with self._phase("inference", memory=True):
-            with torch.inference_mode():
-                images = pipe(
-                    prompt=request.prompt,
-                    negative_prompt=request.negative_prompt,
-                    height=request.height,
-                    width=request.width,
-                    num_inference_steps=request.steps,
-                    generator=generator,
-                ).images
-            torch.cuda.synchronize()
+            with profiler.instrument():
+                with torch.inference_mode():
+                    images = pipe(
+                        prompt=request.prompt,
+                        negative_prompt=request.negative_prompt,
+                        height=request.height,
+                        width=request.width,
+                        num_inference_steps=request.steps,
+                        generator=generator,
+                    ).images
+                torch.cuda.synchronize()
+        samples, self._phase_status = profiler.results()
+        self._components = component_residency(pipe)
+        if self.monitor is not None:
+            self.monitor.update_components(self._components, self._phase_status)
+            for item in samples:
+                # Hook timings are observational, NOT separate model sub-inference.
+                token = self.monitor.begin(item["key"], model_id=MODEL_ID)
+                self.monitor.finish(token, duration_override_ms=item["duration_ms"],
+                                    timing_source=item["timing_source"], calls=item["calls"])
         if cancel.is_set():
             raise InterruptedError("Anima generation cancelled; result was not published")
         if len(images) != 1 or not isinstance(images[0], Image.Image):
