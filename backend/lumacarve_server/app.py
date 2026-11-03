@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from .config import Settings
 from .datasets import DatasetStore
 from .telemetry import GpuTelemetrySampler
+from .execution_monitor import ExecutionMonitor
 from lumacarve_runtime.rust_bridge import scheduler_backend
 from .model_downloads import ModelDownloadManager
 from .routers.downloads import router as downloads_router
@@ -37,7 +38,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         settings.ensure_dirs()
-        queue = JobQueue(JobStore(settings.database_path), make_inference_adapter(settings), settings.max_pending_jobs)
+        adapter = make_inference_adapter(settings)
+        if hasattr(adapter, 'monitor'):
+            adapter.monitor = api.state.execution_monitor
+        queue = JobQueue(JobStore(settings.database_path), adapter, settings.max_pending_jobs, monitor=api.state.execution_monitor)
         app.state.job_queue = queue
         queue.start()
         try:
@@ -55,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api.state.model_downloads = ModelDownloadManager(settings)
     api.state.datasets = DatasetStore(settings)
     api.state.telemetry = GpuTelemetrySampler()
+    api.state.execution_monitor = ExecutionMonitor()
     api.include_router(workflow_router)
     api.include_router(models_router)
     api.include_router(assets_router)
@@ -101,6 +106,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if device < 0 or device > 15:
             raise HTTPException(status_code=422, detail="GPU device index out of range")
         return api.state.telemetry.sample(device)
+
+    @api.get("/api/v1/execution")
+    def execution(limit: int = 40) -> dict[str, object]:
+        from fastapi import HTTPException
+        if not 1 <= limit <= 80:
+            raise HTTPException(status_code=422, detail="Timeline limit out of range")
+        return api.state.execution_monitor.snapshot(limit)
 
     @api.get("/api/v1/runtime")
     def runtime() -> dict[str, object]:
