@@ -172,6 +172,12 @@ onUnmounted(() => { stop(); document.removeEventListener('visibilitychange', vis
       </section>
       <section class="panel monitor-details monitor-phase-panel">
         <div class="panel-heading"><div class="panel-title"><Cpu :size="18"/><h2>组件级阶段</h2></div></div>
+        <div v-if="timeline?.executor" class="monitor-executor-state" aria-live="polite">
+          <span>执行器：{{timeline.executor.mode==='subprocess'?'独立进程':'进程内'}}</span>
+          <span>状态：{{timeline.executor.state}}</span>
+          <span v-if="timeline.executor.pid !== null">PID {{timeline.executor.pid}}</span>
+          <span v-if="timeline.executor.heartbeat_age_seconds !== null">心跳 {{timeline.executor.heartbeat_age_seconds}} 秒前</span>
+        </div>
         <div class="component-phase-grid">
           <div v-for="item in componentPhases" :key="item.key" class="component-phase-item">
             <strong>{{item.name}}</strong>
