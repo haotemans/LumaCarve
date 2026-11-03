@@ -2,9 +2,13 @@ name: Windows unsigned preview
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-preview.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -80,3 +84,12 @@ jobs:
           path: preview-artifacts/*
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish unsigned preview release
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v0.2.0-preview.${{ github.run_number }}"
+          gh release create $tag preview-artifacts/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "LumaCarve 0.2.0 Windows unsigned preview #${{ github.run_number }}" --notes "Unsigned Windows x64 NSIS preview for testing only. Windows SmartScreen or Smart App Control may block installation. Includes the lightweight FastAPI sidecar, not GPU inference/training or model weights. Verify the installer against SHA256SUMS.txt. Not a stable release." --prerelease
