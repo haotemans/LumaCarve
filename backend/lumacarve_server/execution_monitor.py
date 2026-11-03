@@ -21,11 +21,14 @@ TERMINAL = frozenset({"completed", "failed", "cancelled"})
 
 
 class ExecutionMonitor:
-    def __init__(self, max_events: int = 80) -> None:
+    def __init__(self, max_events: int = 80, event_sink: Callable[[dict[str, Any]], None] | None = None) -> None:
         self._lock = threading.RLock()
         self._events: deque[dict[str, Any]] = deque(maxlen=max(1, min(max_events, 200)))
         self._active: dict[str, dict[str, Any]] = {}
         self._local = threading.local()
+        self._sink = event_sink
+        self._component_status = {key: "instrumentation_not_connected" for key in ("te", "vae", "dit")}
+        self._components: list[dict[str, Any]] = []
 
     @contextmanager
     def bind_job(self, job_id: str) -> Iterator[None]:
@@ -49,6 +52,7 @@ class ExecutionMonitor:
         }
         with self._lock:
             self._active[token] = event
+        self._publish({k: v for k, v in event.items() if not k.startswith("_")})
         return token
 
     @staticmethod
@@ -82,6 +86,7 @@ class ExecutionMonitor:
                 event["allocated_bytes"], event["reserved_bytes"] = memory
                 event["allocator_source"] = "pytorch_process_allocator"
             self._events.append(event)
+        self._publish(dict(event))
 
     @contextmanager
     def phase(
@@ -104,6 +109,32 @@ class ExecutionMonitor:
                     pass
             self.finish(token, status=outcome, torch=torch)
 
+    def _publish(self, event: dict[str, Any]) -> None:
+        if self._sink is None:
+            return
+        try:
+            self._sink(event)
+        except Exception:
+            pass  # Monitoring must never make an inference fail.
+
+    def accept_remote_event(self, event: dict[str, Any]) -> None:
+        """Called by supervisor receiving trusted child-process phase messages."""
+        if event.get("stage") not in STAGES or not isinstance(event.get("id"), str):
+            return
+        with self._lock:
+            item = dict(event)
+            if item.get("status") == "running":
+                item["_started_monotonic"] = time.perf_counter() - max(0, float(item.get("duration_ms") or 0)) / 1000
+                self._active[item["id"]] = item
+            elif item.get("status") in TERMINAL:
+                self._active.pop(item["id"], None)
+                self._events.append(item)
+
+    def update_components(self, components: list[dict[str, Any]], phase_status: dict[str, str]) -> None:
+        with self._lock:
+            self._components = [dict(item) for item in components]
+            self._component_status.update({key: value for key, value in phase_status.items() if key in self._component_status})
+
     def snapshot(self, limit: int = 40) -> dict[str, Any]:
         if not 1 <= limit <= 80:
             raise ValueError("Invalid execution timeline limit")
@@ -115,14 +146,13 @@ class ExecutionMonitor:
                 copy["duration_ms"] = max(0.0, round((now - event["_started_monotonic"]) * 1000, 2))
                 active.append(copy)
             events = [dict(event) for event in list(self._events)[-limit:][::-1]]
+            status = dict(self._component_status)
+            components = [dict(item) for item in self._components]
         return {
             "source": "python_worker_in_memory",
             "measured": bool(active or events),
             "active": active,
             "events": events,
-            "phase_detail": {
-                "te": "instrumentation_not_connected",
-                "vae": "instrumentation_not_connected",
-                "dit": "instrumentation_not_connected",
-            },
+            "phase_detail": status,
+            "components": components,
         }
