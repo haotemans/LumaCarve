@@ -12,18 +12,14 @@ LumaCarve/
 ├── frontend/
 │   ├── package.json
 │   └── src/
-│       ├── App.tsx                     # 当前应用导航入口
-│       ├── main.tsx                    # 当前入口，未来可归入 app/
-│       ├── features/
-│       │   ├── image-studio/           # 图像生成/编辑 + Graph/参数两种视图（已迁移）
-│       │   ├── training/               # 规划：LoRA 训练 UI
-│       │   ├── models/                 # 规划：模型/下载 UI
-│       │   ├── datasets/               # 规划：数据集管理 UI
-│       │   ├── gallery/                # 规划：生成作品管理
-│       │   └── tasks/                  # 规划：任务监控
-│       ├── components/                 # 当前共用视觉组件
-│       ├── pages/                      # 尚未迁移的旧页面
-│       └── data/                       # 当前演示数据，接入 API 后应移除
+│       ├── main.ts                     # Vue 3 入口
+│       ├── vue/
+│       │   ├── App.vue                  # 全局导航、工作台外壳
+│       │   ├── router.ts                # Hash Router
+│       │   ├── stores/studio.ts         # Pinia 工作流与真实任务状态
+│       │   ├── views/                   # 生成、训练、画廊、模型、数据集、任务、系统
+│       │   └── styles.css               # 静态设计系统
+│       └── features/image-studio/      # 跨框架 API、workflow JSON、Runtime 解析
 ├── backend/
 │   ├── pyproject.toml                  # 一个 Python 项目、可选依赖组
 │   ├── lumacarve_server/
@@ -51,7 +47,7 @@ LumaCarve/
 ## 依赖方向
 
 ```text
-React UI → HTTP /api/v1 → FastAPI Routers → 业务 Services
+Vue UI → HTTP /api/v1 → FastAPI Routers → 业务 Services
                                          ↓
                        Rust 工作流编译 / 资源调度（PyO3）
                                          ↓
@@ -65,11 +61,11 @@ React UI → HTTP /api/v1 → FastAPI Routers → 业务 Services
 - `services` 调用 Rust 调度决策接口并触发 Python 模型执行；原有 `lumacarve_runtime` 仍承担过渡期策略、真实模型驻留适配。Rust 库本身不依赖 FastAPI。
 - 模型适配器以统一协议承接 Qwen-Image、Anima、MOSS、Krea 等独立格式；不要在 `app.py` 中写每个模型的分支。
 - 训练和推理未来共享一个 GPU 资源仲裁器；不把训练放进另一个不受控的 CUDA 进程。
-- `frontend/src/features/` 为功能归属，`components/` 为真正复用的无领域组件。禁止“所有东西都放 components”。
+- 当前 Vue 页面放在 `frontend/src/vue/views/`，可重用领域协议保留在 `frontend/src/features/image-studio/`；数据定义不依赖 Vue。
 
 ## 迁移规则
 
-1. **新增功能进目标目录**：从现在起，不再新建巨大 `OpticalStudio.tsx` 或 `StudioPages.tsx` 聚合文件。
+1. **新增功能进 Vue 目录**：不再新增 React TSX 或多套 UI 框架，应用导航统一交给 Vue Router。
 2. 现有模块迁移采用小 commit，源码与导入路径同步改，CI 通过后再移下一个。
 3. 用户数据不跟随源文件移动。需要改变磁盘布局时，必须先写兼容读取、迁移器、备份和 dry-run。
 4. 公开 API、工作流 JSON 的 `format` 版本、环境变量名称不能因改文件夹而无声改变。
