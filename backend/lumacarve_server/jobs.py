@@ -268,7 +268,12 @@ class JobQueue:
             self._thread.join(timeout=5)
             if self._thread.is_alive():
                 raise RuntimeError("GPU worker is still active; refusing to release queue ownership")
-        self._owner.release()
+        try:
+            close_adapter = getattr(self.adapter, "close", None)
+            if callable(close_adapter):
+                close_adapter()
+        finally:
+            self._owner.release()
 
     def unload_idle_model(self, timeout: float = 30.0) -> dict[str, Any]:
         """Serialize CUDA cleanup on the existing worker thread, not an API thread."""
@@ -357,7 +362,9 @@ class JobQueue:
                     break
                 job_id, workflow, inputs = task
                 try:
-                    if self.monitor is None:
+                    if getattr(self.adapter, "remote_monitored", False):
+                        result = self.adapter.run(workflow, inputs, cancel, job_id=job_id)
+                    elif self.monitor is None:
                         result = self.adapter.run(workflow, inputs, cancel)
                     else:
                         with self.monitor.bind_job(job_id):

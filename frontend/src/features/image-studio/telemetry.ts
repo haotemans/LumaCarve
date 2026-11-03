@@ -53,11 +53,18 @@ export type ExecutionStage = 'job'|'model_unload'|'model_load'|'lora_update'|'in
 export type PhaseStatus = 'running'|'completed'|'failed'|'cancelled';
 export interface ExecutionEvent {
   id: string; stage: ExecutionStage; status: PhaseStatus; model_id: string | null;
+  timing_source?: string | null; calls?: number | null;
   job_id: string | null; started_at: number; ended_at: number | null;
   duration_ms: number | null; allocated_bytes: number | null;
   reserved_bytes: number | null; allocator_source: string | null;
 }
+export interface ComponentResidency {
+  key: string; state: string; gpu_weight_bytes: number | null;
+  cpu_weight_bytes: number | null; source: string; observed_at: number | null;
+}
 export interface ExecutionTimeline {
+  executor: { mode: string; state: string; pid: number | null; heartbeat_age_seconds: number | null } | null;
+  components: ComponentResidency[];
   source: string;
   measured: boolean;
   active: ExecutionEvent[];
@@ -83,16 +90,38 @@ function parseEvents(value: unknown): ExecutionEvent[] {
       allocated_bytes: validNumber(v.allocated_bytes),
       reserved_bytes: validNumber(v.reserved_bytes),
       allocator_source: typeof v.allocator_source === 'string' ? v.allocator_source : null,
+      timing_source: typeof v.timing_source === 'string' ? v.timing_source : null,
+      calls: validNumber(v.calls),
     }];
   });
 }
 export function parseExecutionTimeline(raw: unknown): ExecutionTimeline {
   if (!raw || typeof raw !== 'object') throw new Error('执行时间线格式无效');
   const value = raw as Record<string, unknown>;
+  const executor = value.executor && typeof value.executor === 'object'
+    ? value.executor as Record<string, unknown> : null;
   const stages = value.phase_detail && typeof value.phase_detail === 'object'
     ? value.phase_detail as Record<string, unknown> : {};
   const phase = (key: string) => typeof stages[key] === 'string' ? stages[key] as string : 'unknown';
   return {
+    executor: executor ? {
+      mode: typeof executor.mode === 'string' ? executor.mode : 'unknown',
+      state: typeof executor.state === 'string' ? executor.state : 'unknown',
+      pid: validNumber(executor.pid),
+      heartbeat_age_seconds: validNumber(executor.heartbeat_age_seconds),
+    } : null,
+    components: Array.isArray(value.components) ? value.components.flatMap((item): ComponentResidency[] => {
+      if (!item || typeof item !== 'object') return [];
+      const entry = item as Record<string, unknown>;
+      if (!['te', 'vae', 'dit'].includes(String(entry.key))) return [];
+      return [{
+        key: String(entry.key), state: typeof entry.state === 'string' ? entry.state : 'unknown',
+        gpu_weight_bytes: validNumber(entry.gpu_weight_bytes),
+        cpu_weight_bytes: validNumber(entry.cpu_weight_bytes),
+        source: typeof entry.source === 'string' ? entry.source : 'unknown',
+        observed_at: validNumber(entry.observed_at),
+      }];
+    }) : [],
     source: typeof value.source === 'string' ? value.source : 'unknown',
     measured: value.measured === true,
     active: parseEvents(value.active),

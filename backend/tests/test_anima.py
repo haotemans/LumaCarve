@@ -193,7 +193,7 @@ class AnimaTests(unittest.TestCase):
 
     def test_api_enqueues_anima_when_explicitly_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
-            settings = Settings(data_dir=Path(tmp), inference_backend="anima")
+            settings = Settings(data_dir=Path(tmp), inference_backend="anima", gpu_executor_mode="inprocess")
             settings.ensure_dirs()
             install_dummy_snapshot(settings)
             with patch("lumacarve_server.adapters.anima.dependencies_available", return_value=True):
@@ -227,7 +227,7 @@ if __name__ == "__main__":
 class ModelSnapshotContractTests(unittest.TestCase):
     def test_model_endpoint_differentiates_index_from_executable_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
-            settings = Settings(data_dir=Path(tmp), inference_backend="anima")
+            settings = Settings(data_dir=Path(tmp), inference_backend="anima", gpu_executor_mode="inprocess")
             settings.ensure_dirs()
             with TestClient(create_app(settings)) as client:
                 payload = client.get("/api/v1/models").json()

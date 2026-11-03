@@ -22,6 +22,9 @@ from .jobs import DisabledInference, JobQueue, JobStore
 
 def make_inference_adapter(settings: Settings):
     if settings.inference_backend == "anima":
+        if settings.gpu_executor_mode == "subprocess":
+            from .gpu_executor import GpuExecutorSupervisor
+            return GpuExecutorSupervisor(settings)
         from .adapters.anima import AnimaAdapter
         return AnimaAdapter(settings)
     return DisabledInference()
@@ -112,7 +115,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from fastapi import HTTPException
         if not 1 <= limit <= 80:
             raise HTTPException(status_code=422, detail="Timeline limit out of range")
-        return api.state.execution_monitor.snapshot(limit)
+        snapshot = api.state.execution_monitor.snapshot(limit)
+        snapshot["executor"] = api.state.job_queue.residency().get("executor", {
+            "mode": settings.gpu_executor_mode, "state": "not_connected",
+            "pid": None, "heartbeat_age_seconds": None,
+        })
+        return snapshot
 
     @api.get("/api/v1/runtime")
     def runtime() -> dict[str, object]:

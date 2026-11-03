@@ -21,11 +21,14 @@ TERMINAL = frozenset({"completed", "failed", "cancelled"})
 
 
 class ExecutionMonitor:
-    def __init__(self, max_events: int = 80) -> None:
+    def __init__(self, max_events: int = 80, event_sink: Callable[[dict[str, Any]], None] | None = None) -> None:
         self._lock = threading.RLock()
         self._events: deque[dict[str, Any]] = deque(maxlen=max(1, min(max_events, 200)))
         self._active: dict[str, dict[str, Any]] = {}
         self._local = threading.local()
+        self._sink = event_sink
+        self._component_status = {key: "instrumentation_not_connected" for key in ("te", "vae", "dit")}
+        self._components: list[dict[str, Any]] = []
 
     @contextmanager
     def bind_job(self, job_id: str) -> Iterator[None]:
@@ -49,6 +52,7 @@ class ExecutionMonitor:
         }
         with self._lock:
             self._active[token] = event
+        self._publish({k: v for k, v in event.items() if not k.startswith("_")})
         return token
 
     @staticmethod
@@ -66,7 +70,9 @@ class ExecutionMonitor:
         except (AttributeError, RuntimeError, ValueError, TypeError):
             return None
 
-    def finish(self, token: str, *, status: str = "completed", torch: Any = None) -> None:
+    def finish(self, token: str, *, status: str = "completed", torch: Any = None,
+               duration_override_ms: float | None = None, timing_source: str | None = None,
+               calls: int | None = None) -> None:
         if status not in TERMINAL:
             raise ValueError("Invalid phase completion status")
         end = time.perf_counter()
@@ -78,10 +84,17 @@ class ExecutionMonitor:
             event["status"] = status
             event["ended_at"] = time.time()
             event["duration_ms"] = max(0.0, round((end - event.pop("_started_monotonic")) * 1000, 2))
+            if duration_override_ms is not None:
+                event["duration_ms"] = max(0.0, round(duration_override_ms, 2))
+            if timing_source is not None:
+                event["timing_source"] = timing_source
+            if calls is not None:
+                event["calls"] = calls
             if memory is not None:
                 event["allocated_bytes"], event["reserved_bytes"] = memory
                 event["allocator_source"] = "pytorch_process_allocator"
             self._events.append(event)
+        self._publish(dict(event))
 
     @contextmanager
     def phase(
@@ -104,6 +117,68 @@ class ExecutionMonitor:
                     pass
             self.finish(token, status=outcome, torch=torch)
 
+    def _publish(self, event: dict[str, Any]) -> None:
+        if self._sink is None:
+            return
+        try:
+            self._sink(event)
+        except Exception:
+            pass  # Monitoring must never make an inference fail.
+
+    def accept_remote_event(self, event: dict[str, Any]) -> None:
+        """Called by supervisor receiving trusted child-process phase messages."""
+        if event.get("stage") not in STAGES or not isinstance(event.get("id"), str):
+            return
+        with self._lock:
+            item = dict(event)
+            if item.get("status") == "running":
+                item["_started_monotonic"] = time.perf_counter() - max(0, float(item.get("duration_ms") or 0)) / 1000
+                self._active[item["id"]] = item
+            elif item.get("status") in TERMINAL:
+                self._active.pop(item["id"], None)
+                self._events.append(item)
+
+    def update_components(self, components: list[dict[str, Any]], phase_status: dict[str, str]) -> None:
+        with self._lock:
+            self._components = [dict(item) for item in components]
+            self._component_status.update({key: value for key, value in phase_status.items() if key in self._component_status})
+
+    def record_observation(
+        self, stage: str, *, model_id: str | None, started_at: float,
+        ended_at: float, duration_ms: float, timing_source: str, calls: int,
+    ) -> None:
+        """Store a real forward-hook observation at the time it actually ran.
+
+        CUDA-event elapsed time can differ from wall-clock duration. Do not
+        replace actual hook timestamps with the later result-harvest time.
+        """
+        if stage not in ("te", "vae", "dit"):
+            raise ValueError("Only component hook stages support observations")
+        event: dict[str, Any] = {
+            "id": uuid.uuid4().hex, "stage": stage, "status": "completed",
+            "model_id": model_id, "job_id": getattr(self._local, "job_id", None),
+            "started_at": started_at, "ended_at": ended_at,
+            "duration_ms": max(0.0, round(duration_ms, 2)),
+            "allocated_bytes": None, "reserved_bytes": None,
+            "allocator_source": None, "timing_source": timing_source,
+            "calls": calls,
+        }
+        with self._lock:
+            self._events.append(event)
+        self._publish(dict(event))
+
+    def fail_remote_active(self) -> None:
+        """Close orphaned events when a supervised GPU child terminates."""
+        with self._lock:
+            for item in self._active.values():
+                event = dict(item)
+                started = event.pop("_started_monotonic", time.perf_counter())
+                event["status"] = "failed"
+                event["ended_at"] = time.time()
+                event["duration_ms"] = max(0.0, round((time.perf_counter() - started) * 1000, 2))
+                self._events.append(event)
+            self._active.clear()
+
     def snapshot(self, limit: int = 40) -> dict[str, Any]:
         if not 1 <= limit <= 80:
             raise ValueError("Invalid execution timeline limit")
@@ -115,14 +190,13 @@ class ExecutionMonitor:
                 copy["duration_ms"] = max(0.0, round((now - event["_started_monotonic"]) * 1000, 2))
                 active.append(copy)
             events = [dict(event) for event in list(self._events)[-limit:][::-1]]
+            status = dict(self._component_status)
+            components = [dict(item) for item in self._components]
         return {
             "source": "python_worker_in_memory",
             "measured": bool(active or events),
             "active": active,
             "events": events,
-            "phase_detail": {
-                "te": "instrumentation_not_connected",
-                "vae": "instrumentation_not_connected",
-                "dit": "instrumentation_not_connected",
-            },
+            "phase_detail": status,
+            "components": components,
         }

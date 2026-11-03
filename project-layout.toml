@@ -323,3 +323,17 @@ source = ["backend/lumacarve_server/execution_monitor.py"]
 doc = "docs/architecture/09-execution-timeline.md"
 tests = ["backend/tests/test_execution_monitor.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "server.gpu_executor"
+source = ["backend/lumacarve_server/gpu_executor.py"]
+doc = "docs/architecture/10-gpu-executor-component-monitoring.md"
+tests = ["backend/tests/test_gpu_executor.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "server.component_monitor"
+source = ["backend/lumacarve_server/component_monitor.py"]
+doc = "docs/architecture/10-gpu-executor-component-monitoring.md"
+tests = ["backend/tests/test_component_monitor.py"]
+verification = "backend-tests"
