@@ -32,6 +32,41 @@ class ServerTests(unittest.TestCase):
                 runtime = client.get("/api/v1/runtime").json()
                 self.assertEqual(runtime["engine"], "not_connected")
                 self.assertIn(runtime["graph_scheduler"], ("rust", "python-fallback"))
+                self.assertFalse(runtime["gpu"]["measured"])
+                self.assertIsNone(runtime["gpu"]["available"])
+                self.assertEqual(runtime["memory_planner"], {
+                    "adaptive": "not_implemented", "current": "auto",
+                })
+                self.assertEqual(runtime["optimization"]["state"], "configured_only")
+                self.assertFalse(runtime["optimization"]["validated_on_gpu"])
+                self.assertEqual(runtime["optimization"]["anima"], {
+                    "adaln": "off", "rope": "off", "residual": "off", "ffn": "off",
+                })
+
+    def test_runtime_reports_requested_experimental_flags_not_verified_execution(self):
+        with tempfile.TemporaryDirectory() as temp:
+            settings = Settings(
+                data_dir=Path(temp),
+                inference_offload="full",
+                anima_triton="experimental",
+                anima_triton_rope="experimental",
+                anima_triton_residual="experimental",
+                anima_triton_ffn="experimental",
+            )
+            with TestClient(create_app(settings)) as client:
+                result = client.get("/api/v1/runtime")
+                self.assertEqual(result.status_code, 200)
+                snapshot = result.json()
+                self.assertEqual(snapshot["inference_offload"], "full")
+                self.assertEqual(snapshot["memory_planner"]["current"], "full")
+                self.assertEqual(snapshot["memory_planner"]["adaptive"], "not_implemented")
+                self.assertTrue(all(
+                    mode == "experimental"
+                    for mode in snapshot["optimization"]["anima"].values()
+                ))
+                self.assertEqual(snapshot["optimization"]["state"], "configured_only")
+                self.assertFalse(snapshot["optimization"]["validated_on_gpu"])
+                self.assertIsNone(snapshot["gpu"]["available"])
 
     def test_local_origin_only(self):
         with tempfile.TemporaryDirectory() as temp:
