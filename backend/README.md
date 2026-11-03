@@ -42,6 +42,7 @@ cd LumaCarve\backend
 | Rust/SQLite 调度桥接 | `lumacarve_runtime/queue_bridge.py` | [15-rust-queue-bridge.md](docs/15-rust-queue-bridge.md) | `test_queue_bridge.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
 | Anima Base 1.0 推理 | `lumacarve_server/adapters/anima.py` | [17-anima-adapter.md](docs/17-anima-adapter.md) | `test_anima.py` |
+| Anima Triton AdaLN-Zero 试验内核 | `lumacarve_runtime/kernels/anima_adaln.py` + `_anima_adaln_triton.py` | [20-anima-triton.md](docs/20-anima-triton.md) | `test_anima_triton.py` |
 | 输出图片 API | `lumacarve_server/routers/outputs.py` | [18-output-images.md](docs/18-output-images.md) | `test_outputs.py` |
 | Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
 | Python 包与路由打包 | `pyproject.toml` | [13-package-layout.md](docs/13-package-layout.md) | `test_packaging.py` |
@@ -73,7 +74,7 @@ cd backend
 ..\.venv\Scripts\python.exe -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 ```
 
-独立 GPU 烟雾测试见 [19-anima-smoke.md](docs/19-anima-smoke.md)。**本仓库 CI 为 CPU/mock 测试，真实出图速度、显存和多 LoRA 兼容性需要目标显卡实测。**
+独立 GPU 烟雾测试见 [19-anima-smoke.md](docs/19-anima-smoke.md)。Anima 可选实验 Triton 融合内核默认关闭；详见 [20-anima-triton.md](docs/20-anima-triton.md)。**本仓库 CI 为 CPU/mock 测试，真实出图速度、显存和多 LoRA 兼容性需要目标显卡实测。**
 
 ## Rust 调度内核（元数据策略已实现，GPU 执行未接通）
 

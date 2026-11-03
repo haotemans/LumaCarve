@@ -239,3 +239,10 @@ source = ["frontend/src/features/image-studio/api.ts"]
 doc = "frontend/src/features/image-studio/docs/api.md"
 tests = []
 verification = "frontend-build"
+
+[[module]]
+id = "runtime.anima_triton"
+source = ["backend/lumacarve_runtime/kernels/anima_adaln.py", "backend/lumacarve_runtime/kernels/_anima_adaln_triton.py", "tools/benchmark_anima_triton.py"]
+doc = "backend/docs/20-anima-triton.md"
+tests = ["backend/tests/test_anima_triton.py"]
+verification = "backend-tests"

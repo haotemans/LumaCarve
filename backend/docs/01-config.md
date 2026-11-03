@@ -6,6 +6,7 @@
 - 目录分别是 \`model/{dit,te,vae,lora,checkpoints}\`、\`assets/\`、\`outputs/\` 与 SQLite 数据库。
 - \`LUMACARVE_HOST=127.0.0.1\`、\`LUMACARVE_PORT=8000\`。当前只允许来自 \`localhost:5173\` 和 \`127.0.0.1:5173\` 的浏览器跨域请求。
 - \`LUMACARVE_INFERENCE_OFFLOAD=auto|full|model_cpu\` 供后续 GPU 适配器使用；不是已经测量的优化结果。
+- `LUMACARVE_ANIMA_TRITON=off|experimental`：默认 `off`。显式启用时仅在真实加载 Anima 后安装可回退的 Cosmos AdaLN-Zero 实验性 Triton Kernel，详见 [20-anima-triton.md](20-anima-triton.md)。
 - \`LUMACARVE_ALLOW_MODEL_DOWNLOAD=0\` 默认拒绝联网下载；首次下载必须由用户显式开启并接受模型许可。
 - 默认文件上限 25 MiB、图像解码上限 4000 万像素、最大排队任务 16。
 

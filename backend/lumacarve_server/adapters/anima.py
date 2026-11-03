@@ -157,6 +157,14 @@ class AnimaAdapter:
             pipe = ModularPipeline.from_pretrained(str(folder))
             pipe.load_components(dtype=dtype)
             pipe.to("cuda")
+        if self.settings.anima_triton == "experimental":
+            from lumacarve_runtime.kernels.anima_adaln import install_anima_adaln_triton
+
+            report = install_anima_adaln_triton(pipe)
+            import logging
+            logging.getLogger(__name__).info(
+                "Anima Triton AdaLN: installed=%d; %s", report.installed, report.reason
+            )
         return pipe, torch
 
     def _lora_path(self, name: str) -> Path:
