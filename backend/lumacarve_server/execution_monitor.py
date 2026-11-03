@@ -143,6 +143,30 @@ class ExecutionMonitor:
             self._components = [dict(item) for item in components]
             self._component_status.update({key: value for key, value in phase_status.items() if key in self._component_status})
 
+    def record_observation(
+        self, stage: str, *, model_id: str | None, started_at: float,
+        ended_at: float, duration_ms: float, timing_source: str, calls: int,
+    ) -> None:
+        """Store a real forward-hook observation at the time it actually ran.
+
+        CUDA-event elapsed time can differ from wall-clock duration. Do not
+        replace actual hook timestamps with the later result-harvest time.
+        """
+        if stage not in ("te", "vae", "dit"):
+            raise ValueError("Only component hook stages support observations")
+        event: dict[str, Any] = {
+            "id": uuid.uuid4().hex, "stage": stage, "status": "completed",
+            "model_id": model_id, "job_id": getattr(self._local, "job_id", None),
+            "started_at": started_at, "ended_at": ended_at,
+            "duration_ms": max(0.0, round(duration_ms, 2)),
+            "allocated_bytes": None, "reserved_bytes": None,
+            "allocator_source": None, "timing_source": timing_source,
+            "calls": calls,
+        }
+        with self._lock:
+            self._events.append(event)
+        self._publish(dict(event))
+
     def fail_remote_active(self) -> None:
         """Close orphaned events when a supervised GPU child terminates."""
         with self._lock:
