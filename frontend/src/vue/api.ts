@@ -1,5 +1,5 @@
 /** HTTP only. No fake model/GPU status and no polling outside active jobs. */
-import { API_ORIGIN, getImageJob, cancelImageJob, submitImageJob, outputFromJob } from '../features/image-studio/api';
+import { API_ORIGIN, apiFetch, imageApiUrl, getImageJob, cancelImageJob, submitImageJob, outputFromJob } from '../features/image-studio/api';
 import type { ImageJob } from '../features/image-studio/api';
 import { fetchRuntimeSnapshot } from '../features/image-studio/runtime';
 export { API_ORIGIN, getImageJob, cancelImageJob, submitImageJob, outputFromJob, fetchRuntimeSnapshot };
@@ -7,7 +7,7 @@ export type { ImageJob };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
-  try { response = await fetch(API_ORIGIN + path, { cache: 'no-store', ...options }); }
+  try { response = await apiFetch(path, { cache: 'no-store', ...options }); }
   catch { throw new Error('无法连接本地后端'); }
   let payload: unknown;
   try { payload = await response.json(); }
@@ -60,7 +60,7 @@ export const createDataset = (id: string, title: string) => request<DatasetSumma
 export const listDatasetItems = (id: string, limit = 48, offset = 0) =>
   request<DatasetPage>('/api/v1/datasets/' + encodeURIComponent(id) + '/images?' + new URLSearchParams({ limit: String(limit), offset: String(offset) }));
 export function datasetImageUrl(id: string, imageId: string): string {
-  return API_ORIGIN + '/api/v1/datasets/' + encodeURIComponent(id) + '/images/' + encodeURIComponent(imageId);
+  return imageApiUrl('/api/v1/datasets/' + encodeURIComponent(id) + '/images/' + encodeURIComponent(imageId));
 }
 export async function uploadDatasetImage(id: string, image: File, caption: string): Promise<DatasetItem> {
   const body = new FormData();
@@ -74,7 +74,7 @@ export const updateDatasetCaption = (datasetId: string, imageId: string, caption
     { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption }) },
   );
 export async function deleteDatasetImage(datasetId: string, imageId: string): Promise<void> {
-  const response = await fetch(API_ORIGIN + '/api/v1/datasets/' + encodeURIComponent(datasetId) + '/images/' + encodeURIComponent(imageId), { method: 'DELETE' });
+  const response = await apiFetch('/api/v1/datasets/' + encodeURIComponent(datasetId) + '/images/' + encodeURIComponent(imageId), { method: 'DELETE' });
   if (!response.ok) {
     let error: string | undefined;
     try { const data: unknown = await response.json(); if (data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string') error = data.detail; } catch { /* no JSON */ }

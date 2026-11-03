@@ -1,5 +1,5 @@
 /** Read-only local backend runtime snapshot. No GPU telemetry or polling. */
-import { API_ORIGIN } from './api';
+import { apiFetch } from './api';
 
 export type KernelMode = 'off' | 'experimental' | 'unknown';
 export type OffloadMode = 'auto' | 'model_cpu' | 'full' | 'unknown';
@@ -69,7 +69,7 @@ export function parseRuntimeSnapshot(raw: unknown): RuntimeSnapshot {
 export async function fetchRuntimeSnapshot(signal?: AbortSignal): Promise<RuntimeSnapshot> {
   let response: Response;
   try {
-    response = await fetch(API_ORIGIN + '/api/v1/runtime', {
+    response = await apiFetch('/api/v1/runtime', {
       method: 'GET', signal, cache: 'no-store',
     });
   } catch (error) {
