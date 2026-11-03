@@ -17,7 +17,7 @@ onMounted(() => { if(!studio.runtime) void studio.refreshRuntime(); });
 <template>
   <div class="system-view">
     <div class="utility-bar"><span class="count-indicator"><Activity :size="15"/>本地运行环境 · 只读状态</span>
-      <button class="subtle-button" :disabled="studio.runtimeLoading" @click="studio.refreshRuntime"><RefreshCw :size="16"/>手动刷新</button>
+      <button class="subtle-button" :disabled="studio.runtimeLoading" @click="() => studio.refreshRuntime()"><RefreshCw :size="16"/>手动刷新</button>
     </div>
     <div class="system-summary">
       <section class="system-tile panel"><div class="system-tile-icon blue"><Cpu :size="21"/></div><span>推理引擎</span><strong>{{engineLabel}}</strong><small>不代表 GPU 已加载</small></section>
