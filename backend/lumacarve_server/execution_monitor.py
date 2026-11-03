@@ -70,7 +70,9 @@ class ExecutionMonitor:
         except (AttributeError, RuntimeError, ValueError, TypeError):
             return None
 
-    def finish(self, token: str, *, status: str = "completed", torch: Any = None) -> None:
+    def finish(self, token: str, *, status: str = "completed", torch: Any = None,
+               duration_override_ms: float | None = None, timing_source: str | None = None,
+               calls: int | None = None) -> None:
         if status not in TERMINAL:
             raise ValueError("Invalid phase completion status")
         end = time.perf_counter()
@@ -82,6 +84,12 @@ class ExecutionMonitor:
             event["status"] = status
             event["ended_at"] = time.time()
             event["duration_ms"] = max(0.0, round((end - event.pop("_started_monotonic")) * 1000, 2))
+            if duration_override_ms is not None:
+                event["duration_ms"] = max(0.0, round(duration_override_ms, 2))
+            if timing_source is not None:
+                event["timing_source"] = timing_source
+            if calls is not None:
+                event["calls"] = calls
             if memory is not None:
                 event["allocated_bytes"], event["reserved_bytes"] = memory
                 event["allocator_source"] = "pytorch_process_allocator"
