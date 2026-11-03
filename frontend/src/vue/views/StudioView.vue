@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
-  ArrowDownToLine, Check, ChevronDown, CirclePlay, Clock3, Download, Image as ImageIcon,
+  Aperture, Check, ChevronDown, CirclePlay, Clock3, Image as ImageIcon,
   Layers3, Maximize2, Plus, RotateCcw, Save, Settings2, Shuffle, Sparkles,
   Trash2, Upload, WandSparkles, X, Zap,
 } from 'lucide-vue-next';
