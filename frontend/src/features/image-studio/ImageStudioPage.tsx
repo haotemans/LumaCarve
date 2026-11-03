@@ -323,7 +323,8 @@ export default function ImageStudioPage({notify}:SharedProps){
   }
   const loraBind=getField(workflow,'loras');
   const loras=Array.isArray(loraBind?.value)?(loraBind!.value as LoRAEntry[]):[];
-  const visibleOutput=generatedImages.find(item=>item.outputId===selectedOutputId)||generatedImages.at(-1);
+  const modelOutputs=generatedImages.filter(item=>item.modelId===modelId);
+  const visibleOutput=modelOutputs.find(item=>item.outputId===selectedOutputId)||modelOutputs.at(-1);
   const previewRatio=activeRef?activeRef.width+' / '+activeRef.height:
     (visibleOutput?visibleOutput.width+' / '+visibleOutput.height:String(getValue('aspect')||'1:1').replace(':',' / '));
   const previewSource=Boolean(activeRef);
@@ -342,6 +343,11 @@ export default function ImageStudioPage({notify}:SharedProps){
         <span className="is-workspace-tag"><SlidersHorizontal size={14}/> 轻量参数工作台</span>
         <button className="is-action-icon" title="导入参数预设 JSON" aria-label="导入参数预设" onClick={()=>graphImportRef.current?.click()}><FolderOpen size={17}/></button>
         <button className="is-action-icon" title="导出参数预设 JSON" aria-label="导出参数预设" onClick={exportWorkflow}><Download size={17}/></button>
+        <button className="is-action-icon" title="恢复默认生成参数" aria-label="恢复默认生成参数" onClick={()=>{
+          setWorkflow(makeWorkflow(workflow.intent,modelId));
+          setCompare(false);
+          notify('已恢复当前模型的默认参数','info');
+        }}><RotateCcw size={17}/></button>
       </div>
     </div>
 
@@ -398,24 +404,30 @@ export default function ImageStudioPage({notify}:SharedProps){
 
       <div className="is-column is-center-column">
         <section className="is-panel is-canvas-panel">
-          <div className="is-canvas-top"><div className="is-preview-title"><span className="is-preview-dot"/><strong>{previewSource?'原图预览':'创作画布'}</strong><small>{previewSource?'REFERENCE IMAGE':visibleOutput?'GENERATED PNG':'SAMPLE VIEW'}</small></div><div className="is-canvas-actions">
-            {previewSource&&<button className={'is-icon-label'+(compare?' active':'')} onClick={()=>setCompare(v=>!v)} title="对照示例"><ArrowLeftRight size={14}/>对比</button>}
+          <div className="is-canvas-top"><div className="is-preview-title"><span className="is-preview-dot"/><strong>{previewSource?'原图预览':'创作画布'}</strong><small>{previewSource?'REFERENCE IMAGE':visibleOutput?'GENERATED PNG':'EMPTY CANVAS'}</small></div><div className="is-canvas-actions">
+            {previewSource&&visibleOutput&&<button className={'is-icon-label'+(compare?' active':'')} onClick={()=>setCompare(v=>!v)} title="查看已生成图片对照"><ArrowLeftRight size={14}/>对比</button>}
             <span className="is-canvas-size">{activeRef?activeRef.width+' × '+activeRef.height:visibleOutput?visibleOutput.width+' × '+visibleOutput.height:String(getValue('aspect')||'1:1')}</span>
           </div></div>
           <div className="is-canvas-backdrop">
             <div className="is-preview-frame" style={{aspectRatio:previewRatio}}>
               {previewSource?<img className="is-main-image" src={activeRef!.url} alt={activeRef!.name}/>:
               visibleOutput?<img className="is-main-image" src={visibleOutput.imageUrl} alt="Anima 实际生成图片"/>:
-              <Artwork variant={sampleIndex+2} className="is-main-image" label="界面示意图，非真实生成结果"/>}
-              {previewSource&&compare&&<div className="is-compare-placeholder"><Artwork variant={sampleIndex+2}/><span>示例对照</span></div>}
+              <div className="is-empty-canvas">
+                <span className="is-empty-canvas-symbol"><ImageIcon size={34} strokeWidth={1.35}/></span>
+                <strong>{activeJobId?'正在生成图像':'开始你的第一张作品'}</strong>
+                <small>{activeJobId?'任务状态将自动更新，结果会在此展示':'输入创作指令并点击「开始生成」'}</small>
+              </div>}
+              {previewSource&&compare&&visibleOutput&&<div className="is-compare-placeholder"><img className="is-main-image" src={visibleOutput.imageUrl} alt="已生成结果对比"/><span>生成结果</span></div>}
               {masked&&previewSource&&<canvas key={activeRef?.id+'-'+workflow.intent} ref={canvasRef} className={'is-mask-canvas'+(drawing?' drawing':'')} style={{opacity:.62}} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label="局部编辑蒙版绘制画布"/>}
-              <span className="is-preview-caption">{previewSource?(masked?'蒙版编辑 · 本地画布':'参考原图 · 本地预览'):visibleOutput?'Anima 生成结果 · Seed '+visibleOutput.seed:'示例预览 · 未生成实际图片'}</span>
+              <span className="is-preview-caption">{previewSource?(masked?'蒙版编辑 · 本地画布':'参考原图 · 本地预览'):visibleOutput?'实际生成结果 · Seed '+visibleOutput.seed:'暂无生成结果'}</span>
             </div>
-            {!previewSource&&!visibleOutput&&<div className="is-placeholder-text"><span><Sparkles size={15}/> 连接生成后端后，结果将在这里显示</span></div>}
           </div>
-          <div className="is-canvas-bottom"><div className="is-canvas-filmstrip">{generatedImages.length?
-              generatedImages.map(item=><button key={item.outputId} className={item.outputId===visibleOutput?.outputId?'active':''} onClick={()=>setSelectedOutputId(item.outputId)} title={'真实生成图片 · Seed '+item.seed}><img src={item.imageUrl} alt={'Anima 输出 '+item.outputId}/></button>):
-              Array.from({length:5},(_,i)=><button className={sampleIndex===i?'active':''} key={i} title={'示例画面 '+(i+1)} onClick={()=>setSampleIndex(i)}><Artwork variant={i+2}/></button>)}</div><span>{generatedImages.length?'Anima 生成历史':'示例素材'}</span></div>
+          <div className="is-canvas-bottom">
+            {modelOutputs.length>0?
+              <div className="is-canvas-filmstrip">{modelOutputs.map(item=><button key={item.outputId} className={item.outputId===visibleOutput?.outputId?'active':''} onClick={()=>setSelectedOutputId(item.outputId)} title={'实际生成图片 · Seed '+item.seed}><img src={item.imageUrl} alt={'生成图像 '+item.outputId}/></button>)}</div>:
+              <span className="is-canvas-no-history">暂无生成记录</span>}
+            <span>{modelOutputs.length?modelOutputs.length+' 张真实生成结果':'输出将保存在本地工作区'}</span>
+          </div>
         </section>
 
         {showPrompt&&<section className="is-panel is-prompt-panel">
@@ -444,7 +456,7 @@ export default function ImageStudioPage({notify}:SharedProps){
                 id==='aspect'?<Setting label={field.title}><select className="is-select" value={String(node.params.aspect||'1:1')} onChange={e=>updateNode(node.id,'aspect',e.target.value)}>{RATIO_OPTIONS.map(r=><option key={r}>{r}</option>)}</select></Setting>:
                 id==='guidance'?<Setting label={field.title}><InlineControl><input className="is-range" type="range" min="0" max="12" step=".5" value={Number(node.params.guidance||0)} onChange={e=>updateNode(node.id,'guidance',Number(e.target.value))}/><b>{Number(node.params.guidance||0).toFixed(1)}</b></InlineControl></Setting>:
                 id==='transparent'?<div className="is-toggle-field"><span>透明背景 <small>RGBA 输出</small></span><label className="is-switch"><input type="checkbox" checked={node.params.transparent===true} onChange={e=>updateNode(node.id,'transparent',e.target.checked)}/><span/></label></div>:
-                <div className="is-muted-hint" key={id}>Graph 参数：{field.title}</div>}
+                <div className="is-muted-hint" key={id}>当前预设字段：{field.title}</div>}
               </div>
             })}</div>:
             <div className="is-empty-param">当前工作流没有暴露高级参数</div>}
