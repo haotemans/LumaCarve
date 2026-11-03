@@ -8,6 +8,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import gc
 import threading
 import uuid
 from dataclasses import dataclass
@@ -131,6 +132,47 @@ class AnimaAdapter:
         self._torch: Any | None = None
         self._loaded_path: Path | None = None
         self._active_loras: tuple[tuple[str, float], ...] = ()
+        self._load_error: str | None = None
+
+    @property
+    def residency(self) -> dict[str, Any]:
+        """Read-only model status; never probes CUDA or loads Torch on GET."""
+        return {
+            "model_id": self.model_id if self._pipeline is not None else None,
+            "path": str(self._loaded_path) if self._pipeline is not None else None,
+            "state": "loaded" if self._pipeline is not None else "unloaded",
+            "verified_release": self._load_error is None,
+            "error": self._load_error,
+        }
+
+    def unload_idle(self) -> dict[str, Any]:
+        """Called by the single queue worker at an idle boundary only."""
+        if self._pipeline is None:
+            return self.residency
+        torch = self._torch
+        if torch is None:
+            raise RuntimeError("Loaded pipeline lacks its torch owner")
+        # Synchronize all outstanding CUDA work before releasing weights.
+        torch.cuda.synchronize()
+        baseline = torch.cuda.memory_allocated()
+        pipe = self._pipeline
+        self._pipeline = None
+        self._loaded_path = None
+        self._active_loras = ()
+        self._torch = None
+        del pipe
+        gc.collect()
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        after = torch.cuda.memory_allocated()
+        # A lower allocation count does not prove no stray references remain;
+        # require no outstanding tensor allocations in the process. If the
+        # executor owns other CUDA tensors, isolation must be implemented first.
+        if after != 0:
+            self._load_error = f"CUDA still owns {after} allocated bytes after unload (before: {baseline}); restart GPU executor"
+            raise RuntimeError(self._load_error)
+        self._load_error = None
+        return self.residency
 
     @property
     def ready(self) -> bool:
@@ -249,8 +291,18 @@ class AnimaAdapter:
             if chosen != expected:
                 raise ValueError("Selected checkpoint is not the installed Anima ModularPipeline snapshot")
 
-        if self._pipeline is None or self._loaded_path != model_dir:
-            self._pipeline, self._torch = self._build(model_dir)
+        if self._load_error is not None:
+            raise EngineUnavailable("CUDA release was not verified; restart the GPU worker")
+        if self._pipeline is not None and self._loaded_path != model_dir:
+            self.unload_idle()
+        if self._pipeline is None:
+            try:
+                self._pipeline, self._torch = self._build(model_dir)
+            except Exception:
+                # A partially initialized CUDA model may still have references
+                # inside Diffusers after an exception. Block until restart.
+                self._load_error = "Model construction failed; restart GPU executor before another load"
+                raise
             self._loaded_path = model_dir
             self._active_loras = ()
         pipe = self._pipeline
@@ -259,7 +311,7 @@ class AnimaAdapter:
             self._apply_loras(pipe, request.loras)
         except Exception:
             # An interrupted LoRA update must never poison the next request.
-            self._pipeline, self._torch, self._loaded_path = None, None, None
+            self._load_error = "LoRA adapter update failed; GPU executor restart required"
             self._active_loras = ()
             raise
         if cancel.is_set():

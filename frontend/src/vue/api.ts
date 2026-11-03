@@ -27,11 +27,13 @@ export interface IndexedModel {
   relative_path: string;
   size_bytes: number;
 }
-export interface ModelIndex { files: IndexedModel[]; loaded: string[]; backend_ready: boolean; backend_configured?: boolean; anima_snapshot?: string | null; planned_families: string[] }
+export interface ModelResidency { model_id: string | null; path: string | null; state: 'loaded' | 'unloaded' | 'unknown'; verified_release: boolean; error: string | null }
+export interface ModelIndex { files: IndexedModel[]; loaded: string[]; residency?: ModelResidency; backend_ready: boolean; backend_configured?: boolean; anima_snapshot?: string | null; planned_families: string[] }
 export interface CatalogModel { id: string; title: string; provider: string; repository: string; format: string; license_note: string; supports_lumacarve_inference: boolean }
 export interface ModelCatalog { region: string; downloads_enabled: boolean; models: CatalogModel[] }
 export interface DownloadJob { id: string; model_id: string; state: 'queued'|'running'|'completed'|'failed'; provider: string; repository: string; destination: string|null; error: string|null }
 export const loadModelIndex = () => request<ModelIndex>('/api/v1/models');
+export const unloadIdleModel = () => request<ModelResidency>('/api/v1/models/unload', { method: 'POST' });
 export const loadModelCatalog = () => request<ModelCatalog>('/api/v1/downloads/catalog');
 export const startModelDownload = (modelId: string, provider: string) => request<DownloadJob>('/api/v1/downloads', {
   method: 'POST', headers: { 'Content-Type': 'application/json' },

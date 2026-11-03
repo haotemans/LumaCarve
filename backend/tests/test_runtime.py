@@ -3,7 +3,7 @@ import unittest
 
 from lumacarve_runtime import (
     ComponentSpec, InsufficientMemory, InvalidWorkflow, MemoryBudget,
-    ModelResidencyManager, Tier, WorkflowNode, compile_workflow, preflight,
+    ModelResidencyManager, Tier, BaseModelBusy, ReleaseNotVerified, WorkflowNode, compile_workflow, preflight,
     run_plan,
 )
 
@@ -139,6 +139,48 @@ class RuntimeTests(unittest.TestCase):
         with manager.lease(["dit"]):
             manager.unload_idle()
             self.assertEqual(manager.snapshot().hot_keys, ("dit",))
+
+
+    def test_exclusive_switch_unloads_old_before_new_load(self):
+        backend = FakeBackend()
+        manager = ModelResidencyManager(MemoryBudget(16, 16), backend, release_check=lambda _: True)
+        manager.register(ComponentSpec("anima:dit", 4, 4, base_id="anima"))
+        manager.register(ComponentSpec("qwen:dit", 4, 4, base_id="qwen"))
+        with manager.lease(["anima:dit"]):
+            pass
+        with manager.lease(["qwen:dit"]):
+            pass
+        self.assertEqual(manager.snapshot().hot_keys, ("qwen:dit",))
+        self.assertLess(backend.calls.index(("unload", "anima:dit", Tier.HOT)),
+                        backend.calls.index(("load", "qwen:dit", Tier.HOT)))
+
+    def test_switch_fails_closed_until_executor_restart(self):
+        manager = ModelResidencyManager(MemoryBudget(16, 16), FakeBackend())
+        manager.register(ComponentSpec("anima", 4, 4, base_id="anima"))
+        manager.register(ComponentSpec("qwen", 4, 4, base_id="qwen"))
+        with manager.lease(["anima"]):
+            pass
+        with self.assertRaises(ReleaseNotVerified):
+            with manager.lease(["qwen"]):
+                pass
+        self.assertTrue(manager.snapshot().switch_blocked)
+        with self.assertRaises(ReleaseNotVerified):
+            with manager.lease(["anima"]):
+                pass
+        manager.recover_after_executor_restart()
+        self.assertFalse(manager.snapshot().switch_blocked)
+
+    def test_exclusive_switch_rejects_concurrent_bases(self):
+        manager = ModelResidencyManager(MemoryBudget(16, 16), FakeBackend(), release_check=lambda _: True)
+        manager.register(ComponentSpec("a", 3, 3, base_id="a"))
+        manager.register(ComponentSpec("b", 3, 3, base_id="b"))
+        with self.assertRaises(BaseModelBusy):
+            with manager.lease(["a", "b"]):
+                pass
+        with manager.lease(["a"]):
+            with self.assertRaises(BaseModelBusy):
+                with manager.lease(["b"]):
+                    pass
 
     def test_executor_releases_unused_outputs(self):
         manager, _ = self.manager(gpu=8, cpu=8)
