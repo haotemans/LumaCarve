@@ -2,7 +2,7 @@
 
 **A modular, local-first studio for image generation, image editing and LoRA training.**
 
-> **Project status:** Frontend preview and a local FastAPI backend (graph validation, model discovery, image assets, SQLite job ledger, scheduling foundation) exist. Actual PyTorch/CUDA inference and LoRA training are NOT wired up or benchmarked.
+> **Project status:** Vue 3 graphical WebUI and FastAPI/SQLite local API are implemented; Anima text-to-image adapter is connected in code but actual GPU inference is not yet benchmarked. LoRA training and additional model adapters are not implemented.
 
 LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与图像创作、编辑工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
 
@@ -16,9 +16,9 @@ LumaCarve is a **modular monorepo**, not a collection of services. Source files,
 - [Module → Markdown → Test manifest](project-layout.toml) · [Image Studio feature](frontend/src/features/image-studio/README.md)
 - [Backend module guide](backend/README.md)
 
-Existing Graph/parameter UI files now reside together in `frontend/src/features/image-studio/`. The global layout checker requires registered backend and Image Studio source files to have documentation and verification paths. Some older frontend pages remain in `frontend/src/pages/` and will be migrated gradually.
+Vue 3 graphical screens live in `frontend/src/vue/`; shared workflow JSON and local HTTP API definitions remain in `frontend/src/features/image-studio/`. React/React Flow and legacy demo pages were removed. See [Vue UI](frontend/README.md) and [ADR 0001](docs/architecture/adr/0001-vue3-frontend.md).
 
-Technical choices: **React + TypeScript + Vite + React Flow** (UI); **Python 3.11+ + FastAPI + Pydantic** (local API); **SQLite + filesystem** (jobs/assets); **PyTorch + Diffusers + model-specific adapters** (planned inference/training), with optional FlashAttention/SageAttention and SDPA fallback. Heavy model loading is intentionally absent from API startup.
+Technical choices: **Vue 3 + Pinia + Vue Router + TypeScript + Vite** (UI); **Python 3.11+ + FastAPI + Pydantic** (local API); **SQLite + filesystem** (jobs/assets); **PyTorch + Diffusers + model-specific adapters** (planned inference/training), with optional FlashAttention/SageAttention and SDPA fallback. Heavy model loading is intentionally absent from API startup.
 
 ## Anima Base 1.0 · first inference integration
 
@@ -92,7 +92,7 @@ Graph scheduling and cache-policy metadata now have an independent Rust crate in
 
 规划页面：**监控仪表盘、LoRA 训练、图像工作室、出图管理、数据集查看、模型管理、任务历史、设置**。
 
-**图像工作室**同时展示文字生成、参考图片编辑、局部重绘。React Flow 的 Graph 节点定义流程，参数模式只展示显式暴露的必要参数；同一个 LoRA Stack 节点支持 0—N 个 LoRA。**Anima 文字生图已连接真实 FastAPI 任务与结果 API**；其它模型的生成与图像编辑仍未接入，前端有明确标注的示例素材。
+**图像工作室**使用 Vue 3 参数界面，内部保留 Graph JSON 定义流程；LoRA Stack 支持 0—N 个实例。**Anima 文字生图已连接真实 FastAPI 任务与结果 API**；其它模型与图像编辑仍未接通，界面不使用示例图冒充生成结果。
 
 Qwen-Image-2.1 已有官方模型权重与多图编辑能力说明，但 LumaCarve 的模型适配器尚未实现。
 
