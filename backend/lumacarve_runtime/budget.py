@@ -14,12 +14,17 @@ class ComponentSpec:
     gpu_bytes: int
     cpu_bytes: int
     kind: str = "model"
+    # All GPU components owned by a base model must carry the same identity.
+    # None is reserved for genuinely model-independent shared components.
+    base_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.key:
             raise ValueError("Component key cannot be empty")
         if self.gpu_bytes < 0 or self.cpu_bytes < 0:
             raise ValueError("Component sizes must be nonnegative")
+        if self.base_id is not None and not self.base_id.strip():
+            raise ValueError("Base model identity must not be empty")
 
 
 @dataclass(frozen=True, slots=True)
