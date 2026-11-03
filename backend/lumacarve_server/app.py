@@ -22,6 +22,9 @@ from .jobs import DisabledInference, JobQueue, JobStore
 
 def make_inference_adapter(settings: Settings):
     if settings.inference_backend == "anima":
+        if settings.gpu_executor_mode == "subprocess":
+            from .gpu_executor import GpuExecutorSupervisor
+            return GpuExecutorSupervisor(settings)
         from .adapters.anima import AnimaAdapter
         return AnimaAdapter(settings)
     return DisabledInference()
