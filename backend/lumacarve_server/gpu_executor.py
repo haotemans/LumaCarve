@@ -32,6 +32,7 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
     lock = threading.Lock()
     living = threading.Event()
     living.set()
+    heartbeat_active = threading.Event()
 
     def send(message: dict[str, Any]) -> None:
         with lock:
@@ -40,10 +41,11 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
     # Event.wait() returns True when stopped; do not busy-loop.
     def heartbeat_loop() -> None:
         while living.is_set():
-            try:
-                send({"type": "heartbeat", "at": time.monotonic()})
-            except (BrokenPipeError, EOFError, OSError):
-                return
+            if heartbeat_active.is_set():
+                try:
+                    send({"type": "heartbeat", "at": time.monotonic()})
+                except (BrokenPipeError, EOFError, OSError):
+                    return
             for _ in range(20):
                 if not living.is_set():
                     return
@@ -77,16 +79,20 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
                 send({"type": "result", "result": adapter.residency})
                 continue
             if operation == "unload":
+                heartbeat_active.set()
                 try:
                     result = adapter.unload_idle()
                     send({"type": "result", "result": result, "residency": adapter.residency})
                 except Exception as exc:
                     send({"type": "error", "error": f"{type(exc).__name__}: {exc}"[:300]})
+                finally:
+                    heartbeat_active.clear()
                 return  # Always exit to release the entire CUDA context.
             if operation != "run":
                 send({"type": "error", "error": "Unsupported worker operation"})
                 continue
             cancel.clear()
+            heartbeat_active.set()
             try:
                 with monitor.bind_job(str(command["job_id"])):
                     with monitor.phase("job", model_id=adapter.model_id):
@@ -100,6 +106,8 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
                 # A partial model load / failed LoRA update is unsafe to reuse.
                 if adapter.residency.get("error"):
                     return
+            finally:
+                heartbeat_active.clear()
     finally:
         living.clear()
         thread.join(timeout=1.0)
@@ -264,6 +272,7 @@ class GpuExecutorSupervisor:
             if self._conn is None:
                 raise RuntimeError("GPU executor unavailable")
             self._state = "running"
+            self._last_heartbeat = time.monotonic()
             self._cancel.clear()
             try:
                 self._conn.send({"type": "run", "workflow": workflow, "inputs": inputs,
@@ -282,6 +291,7 @@ class GpuExecutorSupervisor:
         with self._lock:
             if self._process is None:
                 return self.residency
+            self._last_heartbeat = time.monotonic()
             try:
                 self._conn.send({"type": "unload"})
                 self._receive(expected="result", timeout=30.0)
