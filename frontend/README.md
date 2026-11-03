@@ -1,52 +1,43 @@
 # LumaCarve WebUI
 
-图像工作室已经迁入 [`src/features/image-studio/`](src/features/image-studio/README.md)：代码、Graph、独立样式与逐文件 Markdown 集中在一起。旧版训练/资源页面仍在 `src/pages/`，后续逐个迁移，不一次性破坏现有构建。全局结构与技术选择见 [架构规范](../docs/architecture/README.md)。
+React + TypeScript + Vite，供 **WebUI 与 Windows/Linux Tauri 2 桌面端共用**。图像工作室源码与逐模块文档集中在 [`src/features/image-studio/`](src/features/image-studio/README.md)。
 
-React + TypeScript + Vite 前端初版，供 **WebUI 与未来的 Tauri 2 / Rust 桌面壳共用**。
+## 本地开发
 
-## 启动
-
-需要 Node.js 20.19+ 或 22+。
+需要 Node.js 22 或受 Vite 支持的版本。
 
 ```bash
 cd frontend
 npm install
 npm run dev
+npm run test:runtime
+npm run build
 ```
 
-打开 http://localhost:5173 。
+开发页面：<http://localhost:5173>。通过 `VITE_LUMACARVE_API_URL` 可选择本地 API（默认 `http://127.0.0.1:8000`）。
 
-生产构建：`npm run build`，预览：`npm run preview`。
+## 参数式 Image Studio
 
-## 当前已实现（前端）
+公开界面是**简单的图像创作工作台**，不再出现 Graph/React Flow 编辑入口。左右侧提供模型、LoRA、采样参数、真实运行状态；中间显示实际输出 PNG、提示词及取消控制。无输出时显示静态空画布，不用演示插画冒充生成结果。
 
-- 浅色毛玻璃响应式工作台，顶部双层导航与资源检索。
-- **出图管理**：瀑布式网格、收藏、搜索、筛选、批量选择、本地图片导入、参数详情与复制。
-- **训练采样**：按任务集合归档；Epoch 时间轴、采样预览与任务对比。
-- **数据集管理**：独立页面、图片 / Caption 对照、选择数据集、本地图片与同名 `.txt` 导入、前端编辑 Caption。
-- 训练三栏、图像工作室（文字生成 / 多参考图编辑 / 局部重绘）、模型管理、插件管理、任务历史与设置的可视化 UI。
-- **图像工作室**：根据 Graph 节点暴露字段显示参数控件；可添加任意数量 LoRA、选择参考图（Qwen-Image-2.1 最多 10 张）、在原图上绘制并导出透明 PNG 蒙版、导入/导出工作流 JSON。
-- **Graph 视图**：按需动态加载 React Flow，支持添加、移动、删除、连接节点及暴露参数。与参数视图共用一份工作流定义。
-- 参考图只保留在当前浏览器会话；预览缩放到最大边 1600 像素，切换页面可释放对象 URL。工作流 JSON 不嵌入图片原始二进制内容。
+`StudioWorkflow` 仍是统一的、可序列化、受后端校验的 JSON 结构；按钮修改直接写回相同数据模型。用户可导入/导出参数预设，但不需要管理节点与连接线。保留 `GraphCanvas.tsx` 的原始源文件，主页面不再导入其渲染逻辑。
 
-## 范围说明
+**Anima Base 1.0** 是当前唯一接入的真实文字生成执行适配器，提交本地 `/api/v1/jobs`，成功后从 `/api/v1/outputs/{id}` 显示 PNG。真实生成取决于用户已安装模型、PyTorch 和 CUDA；尚未实机验证。参考编辑、局部重绘、其它模型的前端能力信息仍属预设，不能当作已接入的推理功能。训练及部分资源管理页面仍是原型。
 
-这里是**可运行的前端原型**，包含明确标记的示例数据。**Anima Base 1.0 文字生成已接入真实 FastAPI/SQLite 作业与 PNG 输出 API（需本机完整权重及 CUDA，尚未做 GPU 实测）**。LoRA 训练、其它模型生成与图像编辑、GPU 监控、插件安装等仍未接入真实后端；不存在假生成成功。浏览器中导入的本地图片与编辑状态在当前会话中可用，刷新页面后不保证保存。后续先接入 REST 与任务进度（优先考虑 SSE），仅在确有双向实时数据需求时再使用 WebSocket。
+## 运行状态与性能约束
 
-未引入外部人物图像，卡片默认使用本地 SVG 绘制的原创占位插画。
+右侧 [RuntimeStatusPanel](src/features/image-studio/docs/runtime-status.md) 只读 `GET /api/v1/runtime`：
 
-## Anima 首选模型与运行状态
+- 进入图像工作室时读取一次，主动点击「刷新」时再次读取，不对 GPU 进行后台监控。
+- GPU 未探测时显示「未采集」，显存使用量显示 `—`；不假设有无显卡。
+- `auto` 仅为基础 CPU Offload 配置，**AMEP 智能自动均衡尚未实现**。
+- Triton AdaLN/RoPE/Residual/FFN 的 `experimental` 表示后端配置，不表示已实测加速。
+- 不在 UI 加载 GPU 预测模型或自动进行 Triton Autotune；隐藏大面积模糊环境光，减少页面渲染负担。
 
-图像工作室默认选择 **Anima Base 1.0**，展示文字生成的负面提示词、采样参数及 LoRA Stack。点击生成后真正发送 Graph JSON 到本地 `/api/v1/jobs`，自动轮询状态，只有收到真实 PNG 输出 ID 才显示结果。未启用模型/未下载完整权重时显示后端错误，不会把 SVG 示例当作生成图。
+## 其它页面与限制
 
-注意：当前可执行适配器接收的是 Hugging Face 的 Diffusers ModularPipeline 版本；中国大陆 ModelScope 的原始 ComfyUI 单文件结构已可选择下载，但还没有实现直接推理。见 [后端适配器](../backend/docs/17-anima-adapter.md)、[模型下载源说明](../backend/docs/12-modelscope-downloads.md)。
+现有出图管理、数据集管理、训练页面、模型管理、设置与插件页面仍有部分演示数据和未接通后端的功能。它们必须明确标识状态；不能把示意素材当作生成结果。
 
-## 图像工作室设计约定
+功能在无 GPU 的 CI 中验证 TypeScript/前端构建、运行状态纯解析器测试、Python/FastAPI 状态 API 单元测试。移动端视觉效果及真实 CUDA 性能需要具备对应硬件的环境另行验证。
 
-- **统一图像工作室**：取代仅有文字生图的名称；包含生成、参考图编辑、局部重绘。
-- **Graph 定义流程**：React Flow 管理流程节点和连接；参数模式根据节点的 `exposed` 字段决定显示控件，不需要渲染 Graph 画布。
-- **能力驱动**：参考图数量、蒙版和 RGBA 选项由模型适配器能力声明决定。Anima 的文字生成已接 API，但是否真正能运行仍取决于本机完整模型、PyTorch/CUDA 和设备能力；其它模型能力表仍是布局预设。
-- **LoRA Stack**：每个节点拥有任意长度列表；实际的兼容性和显存预算由 Python 模型运行时检查。
-- **性能**：Graph 模式按需加载 `@xyflow/react`；参考图使用缩略图，避免渲染多个全尺寸纹理。
-
-[Qwen-Image-2.1 原始模型文档](https://huggingface.co/Qwen/Qwen-Image-2.1) · [React Flow 官方文档](https://reactflow.dev/)
+技术说明：[项目架构](../docs/architecture/README.md) · [后端 Anima 适配](../backend/docs/17-anima-adapter.md)。
