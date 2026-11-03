@@ -63,6 +63,7 @@ export interface ComponentResidency {
   cpu_weight_bytes: number | null; source: string; observed_at: number | null;
 }
 export interface ExecutionTimeline {
+  executor: { mode: string; state: string; pid: number | null; heartbeat_age_seconds: number | null } | null;
   components: ComponentResidency[];
   source: string;
   measured: boolean;
@@ -97,10 +98,18 @@ function parseEvents(value: unknown): ExecutionEvent[] {
 export function parseExecutionTimeline(raw: unknown): ExecutionTimeline {
   if (!raw || typeof raw !== 'object') throw new Error('执行时间线格式无效');
   const value = raw as Record<string, unknown>;
+  const executor = value.executor && typeof value.executor === 'object'
+    ? value.executor as Record<string, unknown> : null;
   const stages = value.phase_detail && typeof value.phase_detail === 'object'
     ? value.phase_detail as Record<string, unknown> : {};
   const phase = (key: string) => typeof stages[key] === 'string' ? stages[key] as string : 'unknown';
   return {
+    executor: executor ? {
+      mode: typeof executor.mode === 'string' ? executor.mode : 'unknown',
+      state: typeof executor.state === 'string' ? executor.state : 'unknown',
+      pid: validNumber(executor.pid),
+      heartbeat_age_seconds: validNumber(executor.heartbeat_age_seconds),
+    } : null,
     components: Array.isArray(value.components) ? value.components.flatMap((item): ComponentResidency[] => {
       if (!item || typeof item !== 'object') return [];
       const entry = item as Record<string, unknown>;
