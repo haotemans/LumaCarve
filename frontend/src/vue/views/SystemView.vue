@@ -43,6 +43,15 @@ const labels: Record<ExecutionStage, string> = {
 };
 const phaseStatus: Record<PhaseStatus, string> = { running: '运行中', completed: '完成', failed: '失败', cancelled: '取消' };
 const componentPhases = [{key:'te' as const,name:'Text Encoder'},{key:'vae' as const,name:'VAE'},{key:'dit' as const,name:'DiT'}];
+const componentData = (key: string) => timeline.value?.components.find(item => item.key === key);
+const latestPhase = (key: string) => timeline.value?.events.find(event => event.stage === key);
+const componentStatus = (key: 'te'|'vae'|'dit') => {
+  const phase = timeline.value?.phase_detail[key];
+  return phase === 'observed_cuda' ? 'CUDA 事件计时'
+    : phase === 'observed_wall' ? 'Python 调用耗时'
+    : phase === 'hook_connected_no_calls' ? '已挂钩 · 本次未调用'
+    : phase === 'hook_unavailable' ? '无法观测模块' : '等待真实观测';
+};
 const displayDuration = (ms: number | null) => ms === null ? '—' : ms >= 1000 ? (ms / 1000).toFixed(2) + ' 秒' : Math.round(ms) + ' 毫秒';
 function stop() {
   if (timer !== undefined) clearInterval(timer);
@@ -154,7 +163,7 @@ onUnmounted(() => { stop(); document.removeEventListener('visibilitychange', vis
             <span class="execution-dot" :class="'execution-'+event.status"/>
             <div class="execution-content">
               <div class="execution-event-head"><strong>{{labels[event.stage]}}</strong><span class="execution-status">{{phaseStatus[event.status]}}</span><span class="execution-duration">{{displayDuration(event.duration_ms)}}</span></div>
-              <div class="execution-event-meta"><span v-if="event.model_id">{{event.model_id}}</span><span v-if="event.job_id">任务 {{event.job_id.slice(0, 10)}}</span><span v-if="event.allocated_bytes !== null">PyTorch 已分配 {{formatBytes(event.allocated_bytes)}}</span><span v-if="event.reserved_bytes !== null">预留 {{formatBytes(event.reserved_bytes)}}</span></div>
+              <div class="execution-event-meta"><span v-if="event.model_id">{{event.model_id}}</span><span v-if="event.job_id">任务 {{event.job_id.slice(0, 10)}}</span><span v-if="event.allocated_bytes !== null">PyTorch 已分配 {{formatBytes(event.allocated_bytes)}}</span><span v-if="event.reserved_bytes !== null">预留 {{formatBytes(event.reserved_bytes)}}</span><span v-if="event.timing_source">{{event.timing_source==='cuda_events_sum'?'CUDA 事件计时':event.timing_source==='python_forward_dispatch_wall'?'Python 调用耗时':event.timing_source}}</span><span v-if="event.calls">{{event.calls}} 次调用</span></div>
             </div>
           </div>
         </div>
@@ -165,10 +174,15 @@ onUnmounted(() => { stop(); document.removeEventListener('visibilitychange', vis
         <div class="panel-heading"><div class="panel-title"><Cpu :size="18"/><h2>组件级阶段</h2></div></div>
         <div class="component-phase-grid">
           <div v-for="item in componentPhases" :key="item.key" class="component-phase-item">
-            <strong>{{item.name}}</strong><span>{{timeline?.phase_detail[item.key]==='instrumentation_not_connected'?'等待 Worker 埋点':'尚无实测阶段'}}</span>
+            <strong>{{item.name}}</strong>
+            <span>{{componentStatus(item.key)}}</span>
+            <span v-if="latestPhase(item.key)">实测 {{displayDuration(latestPhase(item.key)?.duration_ms ?? null)}}</span>
+            <span v-if="componentData(item.key)?.gpu_weight_bytes !== null && componentData(item.key)?.gpu_weight_bytes !== undefined">GPU 权重 {{formatBytes(componentData(item.key)?.gpu_weight_bytes)}}</span>
+            <span v-if="componentData(item.key)?.cpu_weight_bytes !== null && componentData(item.key)?.cpu_weight_bytes !== undefined">CPU 权重 {{formatBytes(componentData(item.key)?.cpu_weight_bytes)}}</span>
+            <span v-if="componentData(item.key)">设备状态 {{componentData(item.key)?.state}}</span>
           </div>
         </div>
-        <small class="monitor-hint">当前 Anima 的组件内部执行未单独埋点，不会把总推理时长拆成虚构的 TE / VAE / DiT 数字。</small>
+        <small class="monitor-hint">组件计时来自实际 forward 钩子；CUDA 事件与 Python 调用耗时分别标注。参数设备状态不等于显存分配器统计，无法挂钩时显示未知。</small>
       </section>
       <section class="panel monitor-details">
         <div class="panel-heading"><div class="panel-title"><Activity :size="18"/><h2>采样历史</h2></div><span class="mini-tag">{{visibleHistory.length}} / 30</span></div>
