@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
-  Aperture, Check, ChevronDown, CirclePlay, Clock3, Image as ImageIcon,
-  Layers3, Maximize2, Plus, RotateCcw, Save, Settings2, Shuffle, Sparkles,
+  Aperture, Brush, Check, ChevronDown, CirclePlay, Clock3, Eraser, Image as ImageIcon,
+  Images, Layers3, Maximize2, Plus, RotateCcw, Save, Settings2, Shuffle, Sparkles,
   Trash2, Upload, WandSparkles, X, Zap,
 } from 'lucide-vue-next';
 import { useStudioStore } from '../stores/studio';
@@ -197,6 +197,32 @@ function start() { feedback.value = ''; void studio.submit(); }
           <div class="model-meta"><span class="tiny-dot" :class="{green:studio.modelId==='anima-base-1'}"/>{{studio.modelId==='anima-base-1'?'Anima 推理适配器':'模型适配未接入'}}</div>
         </section>
 
+        <section v-if="studio.workflow.intent!=='create'" class="panel reference-panel">
+          <div class="panel-heading">
+            <div class="panel-title"><ImageIcon :size="17"/><h2>参考图片</h2></div>
+            <span class="mini-tag">{{referenceImages.length}} / {{studio.model.maxReferences}}</span>
+          </div>
+          <button class="reference-upload" :disabled="referenceImages.length>=studio.model.maxReferences" @click="sourceInput?.click()"><Upload :size="20"/><span>添加图片</span><small>PNG / JPG / WebP</small></button>
+          <input ref="sourceInput" class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" multiple @change="addReferenceImages"/>
+          <div v-if="referenceImages.length" class="reference-thumbs">
+            <div v-for="item in referenceImages" :key="item.id" class="reference-item" :class="{chosen:activeReference?.id===item.id}">
+              <button :title="item.name" :aria-label="'查看 '+item.name" @click="selectedReferenceId=item.id;maskDirty=false"><img :src="item.url" :alt="item.name"/></button>
+              <button class="reference-remove" :aria-label="'删除 '+item.name" @click="removeReference(item.id)"><X :size="12"/></button>
+            </div>
+          </div>
+          <div v-if="studio.workflow.intent==='inpaint' && activeReference" class="mask-settings">
+            <div class="control-label"><span>蒙版笔刷</span><output>{{brushSize}} px</output></div>
+            <input v-model.number="brushSize" type="range" min="6" max="100" step="1" class="range-input" aria-label="蒙版笔刷大小"/>
+            <div class="mask-buttons">
+              <button :class="{active:!eraseMask}" @click="eraseMask=false"><Brush :size="14"/>绘制</button>
+              <button :class="{active:eraseMask}" @click="eraseMask=true"><Eraser :size="14"/>擦除</button>
+              <button @click="clearMask"><RotateCcw :size="14"/>清除</button>
+              <button :disabled="!maskDirty" @click="exportMask"><Save :size="14"/>导出</button>
+            </div>
+          </div>
+          <div class="under-panel-note">仅本地预览；编辑模型后端尚未连接</div>
+        </section>
+
         <section class="panel prompt-panel">
           <div class="panel-heading"><div class="panel-title"><Sparkles :size="17"/><h2>提示词</h2></div><span class="count-label">{{studio.prompt.length}} / 20000</span></div>
           <label class="sr-only" for="positive-prompt">正向提示词</label>
@@ -232,13 +258,20 @@ function start() { feedback.value = ''; void studio.submit(); }
           <div class="preview-top">
             <div class="panel-title"><ImageIcon :size="17"/><h2>生成画布</h2></div>
             <div class="preview-actions">
-              <span class="preview-mode"><span class="tiny-dot" :class="{green:studio.selected}"/>{{studio.selected?'实际生成结果':'空画布'}}</span>
-              <a v-if="studio.selected" class="icon-action" :href="studio.selected.imageUrl" target="_blank" rel="noopener noreferrer" title="在新标签页打开图像" aria-label="查看原始图像"><Maximize2 :size="16"/></a>
+              <span class="preview-mode"><span class="tiny-dot" :class="{green:studio.selected || activeReference}"/>{{activeReference && studio.workflow.intent!=='create'?'本地参考图':studio.selected?'实际生成结果':'空画布'}}</span>
+              <a v-if="studio.selected && studio.workflow.intent==='create'" class="icon-action" :href="studio.selected.imageUrl" target="_blank" rel="noopener noreferrer" title="在新标签页打开图像" aria-label="查看原始图像"><Maximize2 :size="16"/></a>
             </div>
           </div>
           <div class="canvas-stage">
             <div class="canvas-frame" :style="{aspectRatio:previewRatio}">
-              <img v-if="studio.selected" :src="studio.selected.imageUrl" alt="本地模型实际生成的图像" class="generated-image"/>
+              <template v-if="activeReference && studio.workflow.intent!=='create'">
+                <img :src="activeReference.url" :alt="activeReference.name" class="generated-image"/>
+                <canvas v-if="studio.workflow.intent==='inpaint'" :key="activeReference.id" ref="maskCanvas"
+                  class="mask-overlay" :width="activeReference.width" :height="activeReference.height"
+                  @pointerdown.prevent="maskDown" @pointermove.prevent="maskMove"
+                  @pointerup="maskUp" @pointercancel="maskUp" aria-label="蒙版涂抹区域"/>
+              </template>
+              <img v-else-if="studio.selected" :src="studio.selected.imageUrl" alt="本地模型实际生成的图像" class="generated-image"/>
               <div v-else class="empty-illustration">
                 <div class="art-grid"/>
                 <div class="art-orbit orbit-one"/><div class="art-orbit orbit-two"/>
@@ -247,7 +280,7 @@ function start() { feedback.value = ''; void studio.submit(); }
                 <strong>{{busy?'正在处理任务':'让灵感成形'}}</strong>
                 <span class="art-subtitle">{{busy?'画面完成后将在这里展示':'输入提示词，生成你的第一张作品'}}</span>
               </div>
-              <div class="canvas-watermark">LUMACARVE <span>•</span> {{studio.aspect}}</div>
+              <div class="canvas-watermark">LUMACARVE <span>•</span> {{activeReference && studio.workflow.intent!=='create'?'REFERENCE':studio.aspect}}</div>
             </div>
           </div>
           <div class="preview-filmstrip">
