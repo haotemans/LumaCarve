@@ -80,6 +80,18 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(payload["scope"], "physical_device")
                 self.assertIn("used_bytes", payload["gpu"])
 
+    def test_execution_timeline_starts_empty_and_rejects_bad_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with TestClient(create_app(Settings(data_dir=Path(tmp)))) as client:
+                response = client.get("/api/v1/execution")
+                self.assertEqual(response.status_code, 200)
+                payload = response.json()
+                self.assertFalse(payload["measured"])
+                self.assertEqual(payload["active"], [])
+                self.assertEqual(payload["events"], [])
+                self.assertEqual(payload["phase_detail"]["dit"], "instrumentation_not_connected")
+                self.assertEqual(client.get("/api/v1/execution?limit=81").status_code, 422)
+
     def test_local_origin_only(self):
         with tempfile.TemporaryDirectory() as temp:
             with TestClient(create_app(Settings(data_dir=Path(temp)))) as client:
