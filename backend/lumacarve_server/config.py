@@ -22,6 +22,7 @@ class Settings:
     data_dir: Path = field(default_factory=default_data_dir)
     host: str = "127.0.0.1"
     port: int = 8000
+    desktop_token: str | None = field(default=None, repr=False)
     allowed_origins: tuple[str, ...] = DEFAULT_ORIGINS
     max_asset_bytes: int = 25 * 1024 * 1024
     max_image_pixels: int = 40_000_000
@@ -57,6 +58,8 @@ class Settings:
             raise ValueError("anima_triton_ffn must be off or experimental")
         if not 1 <= self.port <= 65535:
             raise ValueError("Invalid HTTP port")
+        if self.desktop_token is not None and (len(self.desktop_token) < 32 or len(self.desktop_token) > 128):
+            raise ValueError("Invalid desktop session token")
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -66,6 +69,7 @@ class Settings:
             data_dir=Path(os.environ.get("LUMACARVE_DATA_DIR", str(default.data_dir))).expanduser().resolve(),
             host=os.environ.get("LUMACARVE_HOST", default.host),
             port=int(os.environ.get("LUMACARVE_PORT", str(default.port))),
+            desktop_token=os.environ.get("LUMACARVE_DESKTOP_TOKEN") or None,
             allowed_origins=tuple(x.strip().rstrip("/") for x in origins.split(",") if x.strip()) if origins is not None else DEFAULT_ORIGINS,
             inference_offload=os.environ.get("LUMACARVE_INFERENCE_OFFLOAD", "auto"),
             anima_triton=os.environ.get("LUMACARVE_ANIMA_TRITON", "off"),

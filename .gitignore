@@ -23,3 +23,13 @@ target/
 *.whl
 *.pyd
 *.egg-info/
+
+# Desktop binaries/artifacts
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+frontend/src-tauri/binaries/*
+!frontend/src-tauri/binaries/.gitkeep
+frontend/src-tauri/icons/*
+build/sidecar/
+build/pyinstaller/
+build/spec/

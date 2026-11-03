@@ -2,10 +2,27 @@
 /** Local image generation API. No mock job completion or synthesized images. */
 import type { StudioWorkflow } from './workflow';
 
-export const API_ORIGIN = (
+export let API_ORIGIN = (
   (import.meta.env.VITE_LUMACARVE_API_URL as string | undefined)?.trim() ||
   'http://127.0.0.1:8000'
 ).replace(/\/$/, '');
+
+let desktopToken = '';
+export function configureApiConnection(origin: string, token: string): void {
+  if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin) || !/^[0-9a-f]{64}$/.test(token))
+    throw new Error('Invalid Tauri API connection');
+  API_ORIGIN = origin;
+  desktopToken = token;
+}
+export function imageApiUrl(path: string): string {
+  const url = API_ORIGIN + path;
+  return desktopToken ? url + (path.includes('?') ? '&' : '?') + 'desktop_token=' + encodeURIComponent(desktopToken) : url;
+}
+export function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers);
+  if (desktopToken) headers.set('X-LumaCarve-Token', desktopToken);
+  return fetch(API_ORIGIN + path, { ...options, headers });
+}
 
 export type JobState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -48,7 +65,7 @@ async function jsonOrError(response: Response): Promise<ImageJob> {
 
 export async function submitImageJob(workflow: StudioWorkflow): Promise<ImageJob> {
   try {
-    const response = await fetch(API_ORIGIN + '/api/v1/jobs', {
+    const response = await apiFetch('/api/v1/jobs', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ workflow, priority: 'interactive' }),
@@ -61,12 +78,12 @@ export async function submitImageJob(workflow: StudioWorkflow): Promise<ImageJob
 }
 
 export async function getImageJob(id: string): Promise<ImageJob> {
-  const response = await fetch(API_ORIGIN + '/api/v1/jobs/' + encodeURIComponent(id));
+  const response = await apiFetch('/api/v1/jobs/' + encodeURIComponent(id));
   return jsonOrError(response);
 }
 
 export async function cancelImageJob(id: string): Promise<ImageJob> {
-  const response = await fetch(API_ORIGIN + '/api/v1/jobs/' + encodeURIComponent(id) + '/cancel', {
+  const response = await apiFetch('/api/v1/jobs/' + encodeURIComponent(id) + '/cancel', {
     method: 'POST',
   });
   return jsonOrError(response);
@@ -79,7 +96,7 @@ export function outputFromJob(job: ImageJob): GeneratedImage {
   }
   return {
     outputId: result.output_id,
-    imageUrl: API_ORIGIN + '/api/v1/outputs/' + result.output_id,
+    imageUrl: imageApiUrl('/api/v1/outputs/' + result.output_id),
     width: result.width,
     height: result.height,
     seed: result.seed,

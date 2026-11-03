@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from secrets import compare_digest
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,13 +68,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         origin = request.headers.get("origin")
         if origin and origin.rstrip("/") not in settings.allowed_origins:
             return JSONResponse(status_code=403, content={"detail": "Origin not allowed"})
+        # Desktop sidecar is bound to a random loopback port; require its
+        # per-launch token on ALL application endpoints, including images.
+        # Browser image elements cannot attach custom headers, so read-only
+        # image URLs may use the token in a query parameter. Never log access
+        # URLs in desktop mode. Ordinary WebUI without this setting is
+        # completely unaffected.
+        if settings.desktop_token:
+            supplied = request.headers.get("X-LumaCarve-Token", "") or request.query_params.get("desktop_token", "")
+            if not compare_digest(supplied, settings.desktop_token):
+                return JSONResponse(status_code=403, content={"detail": "Desktop session authorization required"})
         return await call_next(request)
 
     api.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
         allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "X-LumaCarve-Token"],
     )
     # Bind to loopback by default and reject DNS rebinding via the Host header.
     api.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
