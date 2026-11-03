@@ -5,6 +5,8 @@ import { loadModelCatalog, loadModelIndex, loadDownloadJob, startModelDownload }
 import type { CatalogModel, DownloadJob, IndexedModel, ModelCatalog } from '../api';
 const catalog = ref<ModelCatalog | null>(null);
 const localModels = ref<IndexedModel[]>([]);
+const executableSnapshot = ref<string | null>(null);
+const engineReady = ref(false);
 const provider = ref<'huggingface'|'modelscope'>('huggingface');
 const downloading = ref<DownloadJob | null>(null);
 const error = ref('');
@@ -23,6 +25,7 @@ async function refresh() {
   try {
     const [index, remote] = await Promise.all([loadModelIndex(),loadModelCatalog()]);
     localModels.value=index.files;catalog.value=remote;
+    executableSnapshot.value=index.anima_snapshot??null;engineReady.value=index.backend_ready === true;
     provider.value=remote.models[0]?.provider==='modelscope'?'modelscope':'huggingface';
   }catch(reason){error.value=reason instanceof Error?reason.message:'无法读取模型库';}
   finally{loading.value=false;}
@@ -61,7 +64,7 @@ async function download(model: CatalogModel) {
       <article v-for="(model,index) in catalog.models" :key="model.id" class="catalog-card panel">
         <div class="catalog-cover" :class="'catalog-cover-'+index"><div class="catalog-cover-orbit"/><div class="catalog-glyph"><Box :size="29" :stroke-width="1.25"/></div></div>
         <div class="catalog-card-body">
-          <div class="catalog-heading"><h3>{{model.title}}</h3><span v-if="model.id==='anima-base-1'&&provider==='huggingface'" class="mini-tag">首选</span></div>
+          <div class="catalog-heading"><h3>{{model.title}}</h3><span v-if="model.id==='anima-base-1'" class="mini-tag" :class="{ok:engineReady}">{{engineReady?'可执行':executableSnapshot?'等待依赖':'未安装'}}</span></div>
           <div class="catalog-desc"><span>{{model.id}}</span><span>{{provider==='modelscope'?'魔搭':'Hugging Face'}}</span></div>
           <p class="catalog-license">{{model.license_note}}</p>
           <button class="download-button" :disabled="!catalog.downloads_enabled || (!!downloading && ['running','queued'].includes(downloading.state))" @click="download(model)">
@@ -71,6 +74,7 @@ async function download(model: CatalogModel) {
       </article>
     </div>
     <div v-else-if="!loading" class="empty-screen"><div class="empty-symbol"><Box :size="35"/></div><h2>暂无可用模型目录</h2><p>启动本地后端后显示支持的模型来源。</p></div>
+    <div v-if="executableSnapshot" class="model-snapshot-ready panel"><span class="tiny-dot" :class="{green:engineReady}"/><span>后端 Anima 模型快照</span><strong>{{executableSnapshot}}</strong></div>
     <div class="section-header lower-section"><div><span class="eyebrow small">LOCAL FILES</span><h2>已发现的权重文件</h2></div></div>
     <div v-if="localModels.length" class="local-models panel">
       <div v-for="model in localModels" :key="model.id" class="local-model-item">
