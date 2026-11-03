@@ -1,0 +1,78 @@
+name: Tauri 2 desktop installers
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'tools/build-sidecar.py'
+      - 'tools/generate-desktop-icons.py'
+      - '.github/workflows/tauri-desktop.yml'
+  push:
+    branches: ['main', 'feat/tauri2-vue-desktop-bundles']
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'tools/build-sidecar.py'
+      - 'tools/generate-desktop-icons.py'
+      - '.github/workflows/tauri-desktop.yml'
+permissions:
+  contents: read
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev patchelf file
+      - name: Freeze FastAPI and generate icons
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./backend pyinstaller
+          python tools/generate-desktop-icons.py
+          python tools/build-sidecar.py --target '${{ matrix.target }}'
+      - name: Build/test Vue 3
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run test
+          npm run build
+      - name: Bundle unsigned installer
+        working-directory: frontend
+        run: npm run desktop:build -- --bundles '${{ matrix.bundles }}'
+      - name: Upload Windows NSIS installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumaCarve-Windows-NSIS
+          path: frontend/src-tauri/target/release/bundle/nsis/*
+          if-no-files-found: error
+      - name: Upload Linux installers
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumaCarve-Linux-deb-AppImage
+          path: |
+            frontend/src-tauri/target/release/bundle/deb/*
+            frontend/src-tauri/target/release/bundle/appimage/*
+          if-no-files-found: error

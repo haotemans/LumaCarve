@@ -288,3 +288,17 @@ source = ["tools/start-dev.ps1", "tools/start-dev.sh"]
 doc = "docs/architecture/04-local-dev-launch.md"
 tests = []
 verification = "frontend-build"
+
+[[module]]
+id = "desktop.sidecar"
+source = ["backend/lumacarve_server/desktop_entry.py", "tools/build-sidecar.py"]
+doc = "frontend/src-tauri/README.md"
+tests = ["backend/tests/test_desktop_auth.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "desktop.tauri2"
+source = ["frontend/src-tauri/src/main.rs", "frontend/src-tauri/build.rs", "frontend/src-tauri/Cargo.toml", "frontend/src-tauri/tauri.conf.json", "frontend/src/vue/desktop.ts"]
+doc = "docs/architecture/adr/0002-tauri2-sidecar.md"
+tests = []
+verification = "frontend-build"
