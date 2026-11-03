@@ -229,8 +229,9 @@ class JobQueue:
 
     A queue never accepts a job unless a real adapter reports ready=True.
     """
-    def __init__(self, store: JobStore, adapter: InferenceAdapter, max_active: int = 16):
+    def __init__(self, store: JobStore, adapter: InferenceAdapter, max_active: int = 16, monitor: Any = None):
         self.store, self.adapter, self.max_active = store, adapter, max_active
+        self.monitor = monitor
         self._lock = threading.RLock()
         self._wakeup = threading.Event()
         self._shutdown = threading.Event()
@@ -356,7 +357,12 @@ class JobQueue:
                     break
                 job_id, workflow, inputs = task
                 try:
-                    result = self.adapter.run(workflow, inputs, cancel)
+                    if self.monitor is None:
+                        result = self.adapter.run(workflow, inputs, cancel)
+                    else:
+                        with self.monitor.bind_job(job_id):
+                            with self.monitor.phase("job", model_id=getattr(self.adapter, "model_id", None)):
+                                result = self.adapter.run(workflow, inputs, cancel)
                     if cancel.is_set():
                         self.store.transition(job_id, "running", "cancelled")
                     else:
