@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
-from typing import Any, Iterable, Iterator, Mapping, Protocol
+from typing import Any, Callable, Iterable, Iterator, Mapping, Protocol
 
 from .budget import ComponentSpec, MemoryBudget
 
@@ -23,6 +23,14 @@ class Tier(str, Enum):
 
 class InsufficientMemory(MemoryError):
     """No free budget and no safely evictable component remains."""
+
+
+class BaseModelBusy(RuntimeError):
+    """A live component lease prevents a safe base-model switch."""
+
+
+class ReleaseNotVerified(RuntimeError):
+    """The old model was released in policy, but CUDA release was not proven."""
 
 
 class ModelBackend(Protocol):
@@ -56,6 +64,8 @@ class ResidencySnapshot:
     warm_keys: tuple[str, ...]
     cold_keys: tuple[str, ...]
     leased_keys: tuple[str, ...]
+    active_base_id: str | None = None
+    switch_blocked: bool = False
 
 
 class ModelResidencyManager:
@@ -66,9 +76,16 @@ class ModelResidencyManager:
     models to RAM when possible, otherwise directly to disk/unloaded state.
     """
 
-    def __init__(self, budget: MemoryBudget, backend: ModelBackend) -> None:
+    def __init__(
+        self, budget: MemoryBudget, backend: ModelBackend,
+        release_check: Callable[[str], bool] | None = None,
+    ) -> None:
         self.budget = budget
         self.backend = backend
+        # Supplied by a real CUDA executor/supervisor, not the policy layer.
+        self._release_check = release_check
+        self._active_base_id: str | None = None
+        self._switch_blocked = False
         self._lock = RLock()
         self._records: dict[str, _Record] = {}
         self._clock = 0
@@ -154,6 +171,48 @@ class ModelResidencyManager:
                 self._unload(victim)
                 used = self._cpu_used
 
+    def _switch_base_locked(self, base_id: str) -> None:
+        if self._switch_blocked:
+            raise ReleaseNotVerified("GPU executor requires restart before loading a base model")
+        if self._active_base_id == base_id:
+            return
+        if any(record.leases for record in self._records.values()):
+            raise BaseModelBusy("Cannot switch base models while components are leased")
+        previous = self._active_base_id
+        if previous is not None:
+            # Do not merely rely on VRAM pressure or LRU. Remove ALL foreign
+            # hot components, even when both model weights would fit in VRAM.
+            for record in self._records.values():
+                if record.spec.base_id is not None and record.spec.base_id != base_id and record.tier == Tier.HOT:
+                    self._unload(record)
+            # Policy accounting is NOT CUDA proof. Without concrete confirmation
+            # fail closed rather than admitting the new base alongside old GPU refs.
+            try:
+                verified = self._release_check is not None and self._release_check(previous)
+            except Exception as exc:
+                self._switch_blocked = True
+                raise ReleaseNotVerified("CUDA release check failed; executor restart required") from exc
+            if not verified:
+                self._switch_blocked = True
+                raise ReleaseNotVerified("CUDA release not verified; executor restart required")
+        self._active_base_id = base_id
+
+    def recover_after_executor_restart(self) -> None:
+        """ONLY call after the owning GPU process has exited and been replaced.
+
+        Process termination, not a cache-clearing API, is the recovery boundary.
+        All previously issued handles are invalid after this call.
+        """
+        with self._lock:
+            if any(record.leases for record in self._records.values()):
+                raise BaseModelBusy("Cannot reset residency while leases remain")
+            for record in self._records.values():
+                record.instance = None
+                record.tier = Tier.COLD
+            self._gpu_used = self._cpu_used = 0
+            self._active_base_id = None
+            self._switch_blocked = False
+
     def _ensure_hot(self, record: _Record) -> None:
         if record.tier == Tier.HOT:
             self._touch(record)
@@ -181,6 +240,13 @@ class ModelResidencyManager:
         unique = tuple(dict.fromkeys(keys))
         with self._lock:
             records = [self._get(key) for key in unique]
+            base_ids = {record.spec.base_id for record in records if record.spec.base_id is not None}
+            if len(base_ids) > 1:
+                raise BaseModelBusy("One GPU lease may not combine different base models")
+            if self._switch_blocked:
+                raise ReleaseNotVerified("GPU executor requires restart before loading weights")
+            if base_ids:
+                self._switch_base_locked(next(iter(base_ids)))
             required = sum(record.spec.gpu_bytes for record in records)
             if required > self.budget.gpu_capacity:
                 raise InsufficientMemory(
@@ -240,4 +306,6 @@ class ModelResidencyManager:
                 warm_keys=tuple(k for k, r in self._records.items() if r.tier == Tier.WARM),
                 cold_keys=tuple(k for k, r in self._records.items() if r.tier == Tier.COLD),
                 leased_keys=tuple(k for k, r in self._records.items() if r.leases > 0),
+                active_base_id=self._active_base_id,
+                switch_blocked=self._switch_blocked,
             )
