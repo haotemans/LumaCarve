@@ -1,24 +1,24 @@
 {
   "name": "lumacarve-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build",
+    "test": "node --test scripts/*.test.mjs",
     "test:runtime": "node --test scripts/runtime-contract.test.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@xyflow/react": "^12.12.0"
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1",
+    "pinia": "^3.0.3",
+    "lucide-vue-next": "^0.468.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react": "^4.5.0",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "vue-tsc": "^2.2.12",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
   }
