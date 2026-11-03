@@ -29,6 +29,9 @@ export interface ImageJob {
     model_id: string;
   } | null;
   error: string | null;
+  priority?: 'interactive' | 'normal' | 'background';
+  created_at?: number;
+  updated_at?: number;
 }
 
 async function jsonOrError(response: Response): Promise<ImageJob> {

@@ -4,7 +4,7 @@
 export type StudioIntent = 'create' | 'reference' | 'inpaint';
 export type NodeKind = 'model' | 'prompt' | 'references' | 'mask' | 'lora' | 'sampler' | 'vae' | 'output';
 export type FieldId =
-  | 'modelId' | 'prompt' | 'negativePrompt' | 'images' | 'mask'
+  | 'modelId' | 'checkpoint' | 'prompt' | 'negativePrompt' | 'images' | 'mask'
   | 'loras' | 'steps' | 'seed' | 'aspect' | 'guidance' | 'transparent';
 export type FieldValue = string | number | boolean | LoRAEntry[];
 
@@ -62,6 +62,7 @@ export function getStudioModel(id: string): StudioModel {
 }
 export const fieldRegistry: Record<FieldId, StudioField> = {
   modelId: { id: 'modelId', title: '基础模型', group: '模型', placement: 'primary', widget: 'select' },
+  checkpoint: { id: 'checkpoint', title: '模型快照', group: '模型', placement: 'primary', widget: 'select' },
   prompt: { id: 'prompt', title: '创作指令', group: '创作指令', placement: 'primary', widget: 'textarea' },
   negativePrompt: { id: 'negativePrompt', title: '排除内容', group: '创作指令', placement: 'primary', widget: 'textarea' },
   images: { id: 'images', title: '参考图', group: '输入素材', placement: 'primary', widget: 'image-list' },
@@ -90,7 +91,7 @@ export function nodeTitle(kind: NodeKind): string {
 function makeNode(kind: NodeKind, id: string, x: number, y: number, modelId: string): StudioNode {
   const common = { id, kind, x, y };
   switch (kind) {
-    case 'model': return { ...common, params: { modelId }, exposed: ['modelId'] };
+    case 'model': return { ...common, params: { modelId, checkpoint: '' }, exposed: ['modelId', 'checkpoint'] };
     case 'prompt': return { ...common, params: { prompt: '', negativePrompt: '' }, exposed: ['prompt','negativePrompt'] };
     case 'references': return { ...common, params: {}, exposed: ['images'] };
     case 'mask': return { ...common, params: {}, exposed: ['mask'] };

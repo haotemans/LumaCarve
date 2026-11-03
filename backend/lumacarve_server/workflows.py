@@ -20,7 +20,7 @@ ALLOWED = {
     "output": set(),
 }
 FIELDS = {
-    "model": {"modelId"},
+    "model": {"modelId", "checkpoint"},
     "lora": {"loras"},
     "prompt": {"prompt", "negativePrompt"},
     "references": {"images"},
@@ -78,6 +78,9 @@ def validate_workflow(data: dict[str, Any]) -> WorkflowSummary:
             model = params.get("modelId")
             if not isinstance(model, str) or not model or len(model) > 120:
                 _fail("Invalid model ID")
+            checkpoint = params.get("checkpoint", "")
+            if not isinstance(checkpoint, str) or len(checkpoint) > 4096 or "\\x00" in checkpoint:
+                _fail("Invalid checkpoint")
             model_ids.append(model)
         if kind == "prompt":
             for field in ("prompt", "negativePrompt"):

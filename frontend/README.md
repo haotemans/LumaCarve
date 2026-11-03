@@ -19,11 +19,11 @@ npm run build
 | 页面 | 当前功能 |
 |---|---|
 | 图像生成 | Anima Prompt、负面提示词、LoRA、画幅、Steps、CFG、Seed、真实生成结果与取消任务 |
-| LoRA 训练 | 参数表单与空的监控画布。**训练执行后端尚未接通**，启动按钮禁用 |
+| LoRA 训练 | 可选择已保存训练集并预览真实图片；参数草稿与空监控画布。**训练 Worker 尚未接通**，启动按钮禁用 |
 | 作品画廊 | 从后端已完成任务读取真实 PNG，查看/筛选，不再展示演示图片 |
-| 模型管理 | 读取本地权重索引和下载目录；用户明确操作后可启动受控下载 |
-| 数据集 | 只在浏览器会话中导入图片及配对 Caption（含 `image.tags.txt`），可导出当前 Caption，尚未连接持久化后端 |
-| 任务队列 | 读取 SQLite 的真实任务状态，支持手动刷新与请求取消 |
+| 模型管理 | 本地权重与有效 Anima ModularPipeline 快照分离显示；可使用明确下载动作启动受控下载 |
+| 数据集 | **已接入真实后端**：创建训练集、批量图片/Caption 导入、分页缩略图、编辑并保存 `image.tags.txt`、删除、重启后继续使用 |
+| 任务队列 | 读取 SQLite 的真实任务状态，按状态筛选、分页、统计、取消 |
 | 运行环境 | 只读 API 状态、CPU 卸载配置及 Anima Triton 选项，不伪造 GPU/VRAM 数字 |
 
 数据执行结构继续使用原有 `lumacarve.studio.workflow.v1` JSON。UI 为简洁参数式；内部保留 Graph 作为序列化结构，**不展示节点编辑器**。
@@ -41,3 +41,14 @@ npm run build
 **后端真实能力限制**：当前已接线的是 Anima Base 1.0 文字生成任务，不保证目标 GPU 的实际驱动/模型权重就绪。Qwen 编辑、训练 Worker、AMEP 智能自动均衡、真实 GPU 遥测尚未完整实现。
 
 **验证**：GitHub CI 执行 `vue-tsc --noEmit`、Vite 构建和运行状态测试。界面视觉及 GPU 性能需要在实际设备上检查。
+
+## 本轮前后端同步完善
+
+- 真实数据集接口：`GET/POST /api/v1/datasets`、单图上传、缩略图、Caption 保存、删除；文件写入同一个 `LumaCarveData/datasets/`，不是刷新即消失的浏览器预览。
+- 任务接口：`GET /api/v1/jobs?state=completed&limit=30&offset=0` 提供 `total`、`counts`；任务页面按状态展示和分页，不运行额外的 GPU 性能预测。
+- 模型识别：`GET /api/v1/models` 增加 `anima_snapshot`，与普通单文件 `.safetensors` 区分；前端不会把仅通过浏览器读取的文件夹误报为 GPU 已安装模型。
+- Vue / FastAPI 共用同一数据结构，未修改 Rust 图编译与 Triton Kernel；GPU 真实出图、训练执行及 VRAM 遥测仍需后续实机实现。
+
+详见 [数据集后端设计](../backend/docs/24-dataset-library.md) 和 [Vue 工作区说明](src/vue/docs/workspaces.md)。
+
+Windows 可使用仓库根目录的 `.\tools\start-dev.ps1` 一起启动 Vue 与 FastAPI，避免 `npm.ps1` 的 ExecutionPolicy 问题；Linux 对应 `./tools/start-dev.sh`。默认共用 `LumaCarveData`。详见 [启动说明](../docs/architecture/04-local-dev-launch.md)。

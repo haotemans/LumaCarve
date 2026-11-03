@@ -11,6 +11,6 @@
 | AMEP | 尚未实现的自适应显存与执行规划器，要求不在生成过程中消耗 GPU 运行预测。 |
 | Triton 实验配置 | 环境变量中的 `experimental`，不代表内核已经加载或确认更快。 |
 | 真实生成结果 | SQLite 任务完成后，经输出 ID 验证并由 FastAPI 返回的 PNG 文件。 |
-| 数据集本地预览 | 浏览器会话中的图片/Caption 编辑，不等于已保存训练数据集。 |
+| 持久化训练数据集 | 后端 `datasets.sqlite3` 索引与 `LumaCarveData/datasets/{id}` 下 SHA 图片及同名 `.tags.txt` 文件的组合，重启后可继续使用。 |
 
 相关代码：[Vue 工作台](../../vue/docs/studio.md)、[工作流](docs/workflow.md)。

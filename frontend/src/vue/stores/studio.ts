@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { cancelImageJob, fetchRuntimeSnapshot, getImageJob, loadJobs, outputFromJob, submitImageJob } from '../api';
+import { cancelImageJob, fetchRuntimeSnapshot, getImageJob, loadJobs, loadModelIndex, outputFromJob, submitImageJob } from '../api';
 import type { ImageJob } from '../api';
 import { getStudioModel, makeWorkflow, updateNodeValue } from '../../features/image-studio/workflow';
 import type { FieldId, FieldValue, LoRAEntry, StudioIntent, StudioWorkflow } from '../../features/image-studio/workflow';
@@ -18,6 +18,9 @@ export const useStudioStore = defineStore('studio', () => {
   const runtime = ref<RuntimeSnapshot | null>(null);
   const runtimeError = ref('');
   const runtimeLoading = ref(false);
+  const backendSnapshot = ref<string | null>(null);
+  const backendReady = ref(false);
+  const backendConfigured = ref(false);
 
   const modelNode = computed(() => workflow.value.nodes.find(node => node.kind === 'model'));
   const promptNode = computed(() => workflow.value.nodes.find(node => node.kind === 'prompt'));
@@ -39,7 +42,35 @@ export const useStudioStore = defineStore('studio', () => {
     const matches = history.value.filter(o => o.modelId === modelId.value);
     return matches.find(o => o.outputId === selectedOutputId.value) ?? matches[0] ?? null;
   });
-  const canSubmit = computed(() => modelId.value === 'anima-base-1' && workflow.value.intent === 'create' && !!prompt.value.trim() && !activeJobId.value && jobState.value !== 'submitting');
+  const checkpoint = computed(() => String(modelNode.value?.params.checkpoint ?? ''));
+  const checkpointMismatch = computed(() => !!checkpoint.value && checkpoint.value !== backendSnapshot.value);
+  const canSubmit = computed(() =>
+    modelId.value === 'anima-base-1' &&
+    workflow.value.intent === 'create' &&
+    backendReady.value &&
+    !!backendSnapshot.value &&
+    !checkpointMismatch.value &&
+    !!prompt.value.trim() &&
+    !activeJobId.value &&
+    jobState.value !== 'submitting'
+  );
+  async function syncLocalCheckpoints() {
+    try {
+      const index = await loadModelIndex();
+      backendSnapshot.value = index.anima_snapshot ?? null;
+      backendReady.value = index.backend_ready === true;
+      backendConfigured.value = index.backend_configured === true;
+      // Browser local paths are never equivalent to installed GPU-worker paths.
+      if (backendSnapshot.value && !checkpoint.value && modelId.value === 'anima-base-1') {
+        edit('model', 'checkpoint', backendSnapshot.value);
+      }
+    } catch {
+      backendSnapshot.value = null;
+      backendReady.value = false;
+      backendConfigured.value = false;
+    }
+  }
+
 
   function edit(kind: 'prompt' | 'sampler' | 'model' | 'lora', field: FieldId, value: FieldValue) {
     const node = workflow.value.nodes.find(item => item.kind === kind);
@@ -53,6 +84,7 @@ export const useStudioStore = defineStore('studio', () => {
     if (promptPart) { promptPart.params.prompt = priorPrompt; promptPart.params.negativePrompt = priorNegative; }
     workflow.value = next;
     selectedOutputId.value = null;
+    if (id === 'anima-base-1' && backendSnapshot.value) edit('model', 'checkpoint', backendSnapshot.value);
   }
   function setIntent(intent: StudioIntent) {
     if (!model.value.intents.includes(intent)) return;
@@ -85,6 +117,10 @@ export const useStudioStore = defineStore('studio', () => {
     try {
       const result = await loadJobs();
       jobs.value = result.jobs;
+      if (!activeJobId.value) {
+        const pending = result.jobs.find(job => job.state === 'running' || job.state === 'queued');
+        if (pending) { activeJobId.value = pending.id; jobState.value = pending.state; }
+      }
       const outputs: GeneratedImage[] = [];
       for (const job of result.jobs) {
         if (job.state !== 'completed') continue;
@@ -98,7 +134,11 @@ export const useStudioStore = defineStore('studio', () => {
   }
   async function submit() {
     if (!canSubmit.value) {
-      jobError.value = modelId.value !== 'anima-base-1' ? '当前仅 Anima Base 1.0 支持真实生成' : '请先填写提示词，或等待当前任务结束';
+      jobError.value = modelId.value !== 'anima-base-1'
+        ? '当前仅 Anima Base 1.0 支持真实生成'
+        : checkpointMismatch.value ? '当前底模与后端已安装快照不一致'
+        : !backendReady.value ? '请先安装完整 Anima 模型并启动后端'
+        : '请填写提示词或等待当前任务结束';
       return;
     }
     jobError.value = ''; jobState.value = 'submitting';
@@ -139,7 +179,8 @@ export const useStudioStore = defineStore('studio', () => {
 
   return {
     workflow, history, jobs, selectedOutputId, activeJobId, jobState, jobError,
-    runtime, runtimeError, runtimeLoading, modelId, model, prompt, negativePrompt,
+    runtime, runtimeError, runtimeLoading, backendSnapshot, backendReady, backendConfigured,
+    checkpoint, checkpointMismatch, syncLocalCheckpoints, modelId, model, prompt, negativePrompt,
     steps, seed, aspect, guidance, loras, selected, canSubmit,
     edit, setModel, setIntent, restore, setPreset, setLoras, addLora, editLora, removeLora,
     refreshRuntime, loadRecent, submit, pollActive, cancel,

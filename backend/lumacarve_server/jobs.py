@@ -71,6 +71,8 @@ class JobStore:
             columns = {row[1] for row in connection.execute("PRAGMA table_info(jobs)")}
             if "priority" not in columns:
                 connection.execute("ALTER TABLE jobs ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'")
+            # Supports state-filtered pages and queue summaries without N+1 scans.
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_jobs_state_created ON jobs(state,created_at DESC)")
             connection.execute("""
                 CREATE TABLE IF NOT EXISTS scheduler_state (
                     key TEXT PRIMARY KEY,
@@ -119,6 +121,15 @@ class JobStore:
             )
         return self.get(job_id)
 
+    @staticmethod
+    def _as_job(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "id": row["id"], "state": row["state"], "priority": row["priority"],
+            "result": json.loads(row["result"]) if row["result"] else None,
+            "error": row["error"], "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
     def get(self, job_id: str) -> dict[str, Any]:
         with self._lock, self._connect() as connection:
             row = connection.execute(
@@ -127,12 +138,7 @@ class JobStore:
             ).fetchone()
         if row is None:
             raise JobNotFound(job_id)
-        return {
-            "id": row["id"], "state": row["state"], "priority": row["priority"],
-            "result": json.loads(row["result"]) if row["result"] else None,
-            "error": row["error"], "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-        }
+        return self._as_job(row)
 
     def count_active(self) -> int:
         with self._lock, self._connect() as connection:
@@ -140,12 +146,31 @@ class JobStore:
                 "SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running')"
             ).fetchone()[0]
 
-    def list(self, limit: int = 50) -> list[dict[str, Any]]:
+    def list(self, limit: int = 50, offset: int = 0, state: str | None = None) -> list[dict[str, Any]]:
+        """One bounded SQLite query (previously N+1 connections per UI refresh)."""
+        if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
+            raise ValueError("Invalid job page")
+        if state is not None and state not in STATUS:
+            raise ValueError("Invalid job state")
+        where = "WHERE state=?" if state is not None else ""
+        args = (state, limit, offset) if state is not None else (limit, offset)
         with self._lock, self._connect() as connection:
-            ids = [row[0] for row in connection.execute(
-                "SELECT id FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
-            ).fetchall()]
-        return [self.get(job_id) for job_id in ids]
+            rows = connection.execute(
+                f"SELECT id,state,priority,result,error,created_at,updated_at "
+                f"FROM jobs {where} ORDER BY created_at DESC,rowid DESC LIMIT ? OFFSET ?",
+                args,
+            ).fetchall()
+        return [self._as_job(row) for row in rows]
+
+    def counts(self) -> dict[str, int]:
+        """Existing queue ledger only. Never queries GPU or loads Torch."""
+        with self._lock, self._connect() as connection:
+            rows = connection.execute("SELECT state,COUNT(*) AS count FROM jobs GROUP BY state").fetchall()
+        counts = {status: 0 for status in STATUS}
+        for row in rows:
+            if row["state"] in counts:
+                counts[row["state"]] = row["count"]
+        return counts
 
     def claim_next(self) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
         """Atomically claim one task from the SQLite queue.

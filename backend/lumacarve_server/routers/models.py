@@ -2,13 +2,23 @@
 from fastapi import APIRouter, Request
 
 from ..models import KNOWN_FAMILIES, scan_models
+from ..adapters.anima import find_anima_snapshot
 
 router = APIRouter(prefix="/api/v1/models", tags=["models"])
 
 
 @router.get("")
 def models(request: Request):
-    root = request.app.state.settings.models_dir
+    settings = request.app.state.settings
+    root = settings.models_dir
+    snapshot = find_anima_snapshot(settings)
+    if snapshot is None:
+        snapshot_name = None
+    else:
+        try:
+            snapshot_name = snapshot.relative_to(root.resolve()).as_posix()
+        except ValueError:
+            snapshot_name = str(snapshot)
     return {
         "files": [model.__dict__ if hasattr(model, "__dict__") else {
             "id": model.id,
@@ -19,5 +29,7 @@ def models(request: Request):
         } for model in scan_models(root)],
         "planned_families": list(KNOWN_FAMILIES),
         "loaded": [],
-        "backend_ready": False,
+        "backend_ready": bool(request.app.state.job_queue.adapter.ready),
+        "anima_snapshot": snapshot_name,
+        "backend_configured": settings.inference_backend == "anima",
     }

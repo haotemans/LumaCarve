@@ -203,3 +203,31 @@ class AnimaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModelSnapshotContractTests(unittest.TestCase):
+    def test_model_endpoint_differentiates_index_from_executable_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(data_dir=Path(tmp), inference_backend="anima")
+            settings.ensure_dirs()
+            with TestClient(create_app(settings)) as client:
+                payload = client.get("/api/v1/models").json()
+                self.assertFalse(payload["backend_ready"])
+                self.assertIsNone(payload["anima_snapshot"])
+                self.assertTrue(payload["backend_configured"])
+                folder = install_dummy_snapshot(settings)
+                payload = client.get("/api/v1/models").json()
+                self.assertEqual(payload["anima_snapshot"], folder.relative_to(settings.models_dir).as_posix())
+                self.assertFalse(payload["backend_ready"])  # CUDA deps still missing
+
+    def test_browser_selected_checkpoint_cannot_silently_change_backend_model(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(data_dir=Path(tmp), inference_backend="anima")
+            settings.ensure_dirs()
+            install_dummy_snapshot(settings)
+            data = make_workflow()
+            data["nodes"][0]["params"]["checkpoint"] = "some-local-file.safetensors"
+            with TestClient(create_app(settings)) as client:
+                response = client.post("/api/v1/jobs", json={"workflow": data})
+                self.assertEqual(response.status_code, 422)
+                self.assertIn("checkpoint", response.text)

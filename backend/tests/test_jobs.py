@@ -128,3 +128,44 @@ class JobsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class JobListingTests(unittest.TestCase):
+    def test_page_filter_and_counts_are_from_real_ledger(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(data_dir=Path(tmp))
+            with TestClient(create_app(settings)) as client:
+                store = client.app.state.job_queue.store
+                ids = [store.create(sample(), {})["id"] for _ in range(4)]
+                self.assertTrue(store.transition(ids[0], "queued", "completed", result={"output": "ok"}))
+                self.assertTrue(store.transition(ids[1], "queued", "failed", error="fixture"))
+                result = client.get("/api/v1/jobs?state=queued&limit=1").json()
+                self.assertEqual(result["counts"]["queued"], 2)
+                self.assertEqual(result["counts"]["completed"], 1)
+                self.assertEqual(result["counts"]["failed"], 1)
+                self.assertEqual(result["total"], 2)
+                self.assertEqual(len(result["jobs"]), 1)
+                page_two = client.get("/api/v1/jobs?state=queued&limit=1&offset=1").json()
+                self.assertEqual(len(page_two["jobs"]), 1)
+                self.assertNotEqual(result["jobs"][0]["id"], page_two["jobs"][0]["id"])
+                self.assertEqual(client.get("/api/v1/jobs?state=other").status_code, 422)
+                self.assertEqual(client.get("/api/v1/jobs?limit=101").status_code, 422)
+                runtime = client.get("/api/v1/runtime").json()
+                self.assertEqual(runtime["queue"]["counts"]["queued"], 2)
+                self.assertEqual(runtime["queue"]["capacity"], settings.max_pending_jobs)
+
+    def test_fast_list_does_not_open_new_connection_per_result(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = JobStore(Path(tmp) / "tasks.sqlite3")
+            for _ in range(40):
+                store.create(sample(), {})
+            original = store._connect
+            calls = 0
+            def count():
+                nonlocal calls
+                calls += 1
+                return original()
+            store._connect = count
+            jobs = store.list(limit=30)
+            self.assertEqual(len(jobs), 30)
+            self.assertEqual(calls, 1)

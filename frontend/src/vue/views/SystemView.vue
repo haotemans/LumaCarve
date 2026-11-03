@@ -24,6 +24,13 @@ onMounted(() => { if(!studio.runtime) void studio.refreshRuntime(); });
       <section class="system-tile panel"><div class="system-tile-icon purple"><HardDrive :size="21"/></div><span>GPU 显存</span><strong>—</strong><small>未采集实时数据</small></section>
       <section class="system-tile panel"><div class="system-tile-icon cyan"><Zap :size="21"/></div><span>显存策略</span><strong>{{studio.runtime?.offload || '未知'}}</strong><small>非 AMEP 智能均衡</small></section>
     </div>
+    <div v-if="studio.runtime?.queue" class="system-queue-overview panel">
+      <span>真实任务队列</span>
+      <div class="system-queue-counter"><strong>{{studio.runtime.queue.running}}</strong><small>运行中</small></div>
+      <div class="system-queue-counter"><strong>{{studio.runtime.queue.queued}}</strong><small>等待中</small></div>
+      <div class="system-queue-counter"><strong>{{studio.runtime.queue.capacity}}</strong><small>队列容量</small></div>
+      <RouterLink to="/tasks" class="subtle-button">查看任务</RouterLink>
+    </div>
     <div class="system-details-grid">
       <section class="panel system-detail">
         <div class="panel-heading"><div class="panel-title"><ShieldCheck :size="18"/><h2>Triton 实验配置</h2></div><span class="mini-tag">EXPERIMENTAL</span></div>

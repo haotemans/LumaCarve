@@ -75,3 +75,8 @@ CPU 单元测试通过可证明工作流转换、加载生命周期和保存行�
 ## 第四阶段 · 可选的 FFN Linear + GELU 融合
 
 `LUMACARVE_ANIMA_TRITON_FFN=experimental` 尝试融合原始 `CosmosTransformerBlock.ff` 中首个 `Linear` 与精确 `GELU`，只在 `inference_offload=full` 且无插件 hooks、LoRA 包装、Autocast、TorchCompile、梯度的兼容路径生效；默认关闭。不修改输出层 Linear。完整条件、Triton/PyTorch/TorchInductor 手动对比和测试见 [23-anima-triton-ffn.md](23-anima-triton-ffn.md)。
+
+
+## 后端底模选择真实性
+
+`GET /api/v1/models` 的 `anima_snapshot` 只返回在后端文件系统通过 Diffusers ModularPipeline 结构检查的完整目录；浏览器文件夹枚举只读取本地文件名，不是上传模型。`POST /api/v1/jobs` 会检查工作流 `model.checkpoint` 是否与该已安装目录一致，`AnimaAdapter.run()` 也执行相同检查；不允许静默忽略用户选定的底模路径。普通单文件 `.safetensors` 目前不能作为本 Anima Adapter 的直接加载输入。

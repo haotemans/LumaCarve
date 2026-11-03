@@ -1,5 +1,5 @@
 """Job API: validation first, then single-GPU-worker admission."""
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Literal
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,27 @@ def submit(request: Request, payload: JobRequest):
     except WorkflowValidationError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     adapter = request.app.state.job_queue.adapter
+    # The old UI could enumerate a local browser folder and place its name in
+    # model.checkpoint, but that folder was never uploaded to the GPU worker.
+    # Reject such paths instead of silently generating with a different model.
+    if summary.model_id == "anima-base-1":
+        from ..adapters.anima import find_anima_snapshot
+        snapshot = find_anima_snapshot(request.app.state.settings)
+        for node in payload.workflow["nodes"]:
+            if node.get("kind") != "model":
+                continue
+            chosen = node.get("params", {}).get("checkpoint", "")
+            if not chosen:
+                break
+            root = request.app.state.settings.models_dir.resolve()
+            if snapshot is None:
+                raise HTTPException(422, detail="Anima snapshot is not installed on this backend")
+            try:
+                expected = snapshot.relative_to(root).as_posix()
+            except ValueError:
+                expected = str(snapshot)
+            if chosen != expected:
+                raise HTTPException(422, detail="Selected checkpoint is not the installed Anima ModularPipeline snapshot")
     if getattr(adapter, "model_id", None) is not None:
         if summary.model_id != adapter.model_id or summary.intent != "create":
             raise HTTPException(
@@ -54,8 +75,21 @@ def submit(request: Request, payload: JobRequest):
 
 
 @router.get("")
-def list_jobs(request: Request):
-    return {"jobs": request.app.state.job_queue.store.list()}
+def list_jobs(
+    request: Request,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=1_000_000),
+    state: Literal["queued", "running", "completed", "failed", "cancelled"] | None = None,
+):
+    store = request.app.state.job_queue.store
+    counts = store.counts()
+    return {
+        "jobs": store.list(limit=limit, offset=offset, state=state),
+        "total": counts[state] if state else sum(counts.values()),
+        "counts": counts,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/{job_id}")

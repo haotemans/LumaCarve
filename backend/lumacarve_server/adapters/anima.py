@@ -237,6 +237,17 @@ class AnimaAdapter:
         model_dir = find_anima_snapshot(self.settings)
         if model_dir is None:
             raise EngineUnavailable("Download the complete Anima Diffusers snapshot before generation")
+        # Checkpoint identifiers are backend snapshot paths, never browser-side
+        # file handles or arbitrary .safetensors paths.
+        model_node = next(node for node in workflow["nodes"] if node["kind"] == "model")
+        chosen = model_node.get("params", {}).get("checkpoint", "")
+        if chosen:
+            try:
+                expected = model_dir.relative_to(self.settings.models_dir.resolve()).as_posix()
+            except ValueError:
+                expected = str(model_dir)
+            if chosen != expected:
+                raise ValueError("Selected checkpoint is not the installed Anima ModularPipeline snapshot")
 
         if self._pipeline is None or self._loaded_path != model_dir:
             self._pipeline, self._torch = self._build(model_dir)
