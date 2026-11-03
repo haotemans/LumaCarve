@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
-import { ArrowDownToLine, Box, CheckCircle2, Download, HardDrive, RefreshCw, ShieldAlert, Sparkles } from 'lucide-vue-next';
-import { loadModelCatalog, loadModelIndex, loadDownloadJob, startModelDownload } from '../api';
-import type { CatalogModel, DownloadJob, IndexedModel, ModelCatalog } from '../api';
+import { ArrowDownToLine, Box, Download, HardDrive, RefreshCw, ShieldAlert, Trash2, Cpu, CheckCircle2 } from 'lucide-vue-next';
+import { loadModelCatalog, loadModelIndex, loadDownloadJob, startModelDownload, unloadIdleModel, loadJobs } from '../api';
+import type { CatalogModel, DownloadJob, IndexedModel, ModelCatalog, ModelResidency } from '../api';
 const catalog = ref<ModelCatalog | null>(null);
 const localModels = ref<IndexedModel[]>([]);
 const executableSnapshot = ref<string | null>(null);
 const engineReady = ref(false);
+const residency = ref<ModelResidency | null>(null);
+const queueActive = ref(0);
+const releasing = ref(false);
+const notice = ref('');
 const provider = ref<'huggingface'|'modelscope'>('huggingface');
 const downloading = ref<DownloadJob | null>(null);
 const error = ref('');
@@ -25,10 +29,23 @@ async function refresh() {
   try {
     const [index, remote] = await Promise.all([loadModelIndex(),loadModelCatalog()]);
     localModels.value=index.files;catalog.value=remote;
+    residency.value=index.residency ?? null;
+    try { const jobs=await loadJobs('all',1,0); queueActive.value=jobs.counts.running+jobs.counts.queued; }
+    catch { queueActive.value = -1; }
     executableSnapshot.value=index.anima_snapshot??null;engineReady.value=index.backend_ready === true;
     provider.value=remote.models[0]?.provider==='modelscope'?'modelscope':'huggingface';
   }catch(reason){error.value=reason instanceof Error?reason.message:'无法读取模型库';}
   finally{loading.value=false;}
+}
+async function releaseModel() {
+  if (releasing.value || queueActive.value !== 0) return;
+  releasing.value = true; error.value = ''; notice.value = '';
+  try {
+    residency.value = await unloadIdleModel();
+    notice.value = 'GPU 模型释放检查已通过';
+    await refresh();
+  } catch (reason) { error.value = reason instanceof Error ? reason.message : '释放失败'; }
+  finally { releasing.value = false; }
 }
 async function watchDownload() {
   if (!downloading.value || !['queued','running'].includes(downloading.value.state)) return;
@@ -54,6 +71,21 @@ async function download(model: CatalogModel) {
       <button class="subtle-button" :disabled="loading" @click="refresh"><RefreshCw :size="16"/>刷新</button></div>
     </div>
     <div v-if="error" class="inline-error" role="alert">{{error}}</div>
+    <div v-if="notice" class="inline-notice" role="status">{{notice}}</div>
+    <section class="residency-board panel" aria-label="GPU 模型驻留状态">
+      <div class="residency-header"><div class="residency-title"><Cpu :size="19"/><div><strong>GPU 模型驻留</strong><small>来自当前后端状态，不是模型文件扫描</small></div></div>
+        <span class="mini-tag" :class="{ok:residency?.state==='loaded'}">{{residency?.state==='loaded'?'模型驻留中':residency?.state==='unloaded'?'未加载':'状态未知'}}</span>
+      </div>
+      <div class="residency-grid">
+        <div class="residency-metric"><span>当前底模</span><strong>{{residency?.model_id ?? '—'}}</strong></div>
+        <div class="residency-metric"><span>等待 / 运行</span><strong>{{queueActive < 0 ? '未知' : queueActive + ' 项任务'}}</strong></div>
+        <div class="residency-metric"><span>释放确认</span><strong>{{residency?.verified_release===true?'无已知阻断':'未验证'}}</strong></div>
+      </div>
+      <div v-if="residency?.error" class="inline-error" role="alert">{{residency.error}}</div>
+      <div class="residency-actions"><span class="residency-help">只在任务全部结束后卸载。切换底模不会保留旧底模的 GPU 权重。</span>
+        <button class="subtle-button" :disabled="releasing || loading || queueActive!==0 || residency?.state!=='loaded'" @click="releaseModel"><Trash2 :size="15"/>{{releasing?'正在验证释放…':'卸载当前模型'}}</button>
+      </div>
+    </section>
     <div v-if="downloading" class="download-state panel" role="status">
       <div class="download-state-icon"><ArrowDownToLine :size="21"/></div>
       <div><strong>{{downloading.model_id}}</strong><span>{{downloading.state==='running'?'正在下载模型':downloading.state==='queued'?'下载任务排队':downloading.state==='completed'?'下载完成':'下载失败'}} · {{downloading.provider}}</span></div>
