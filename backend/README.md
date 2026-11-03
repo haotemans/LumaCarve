@@ -43,6 +43,7 @@ cd LumaCarve\backend
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
 | Anima Base 1.0 推理 | `lumacarve_server/adapters/anima.py` | [17-anima-adapter.md](docs/17-anima-adapter.md) | `test_anima.py` |
 | Anima Triton AdaLN-Zero 试验内核 | `lumacarve_runtime/kernels/anima_adaln.py` + `_anima_adaln_triton.py` | [20-anima-triton.md](docs/20-anima-triton.md) | `test_anima_triton.py` |
+| Anima Triton Q/K RoPE 试验内核 | `lumacarve_runtime/kernels/anima_rope.py` + `_anima_rope_triton.py` | [21-anima-triton-rope.md](docs/21-anima-triton-rope.md) | `test_anima_rope.py` |
 | 输出图片 API | `lumacarve_server/routers/outputs.py` | [18-output-images.md](docs/18-output-images.md) | `test_outputs.py` |
 | Rust Graph 桥接 | `lumacarve_runtime/rust_bridge.py` | [14-rust-graph-bridge.md](docs/14-rust-graph-bridge.md) | `test_rust_bridge.py` |
 | Python 包与路由打包 | `pyproject.toml` | [13-package-layout.md](docs/13-package-layout.md) | `test_packaging.py` |
