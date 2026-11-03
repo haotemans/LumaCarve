@@ -10,3 +10,7 @@
 本地后端地址默认 `http://127.0.0.1:8000`，开发时可用 `VITE_LUMACARVE_API_URL` 覆盖；不自动扫描网络服务，也不依赖代理/外网。
 
 验证入口：`cd frontend && npm run build`。后端 Python 单元测试覆盖提交、执行、输出文件和失败路径。前端浏览器端端到端测试仍未实现。
+
+## 与运行状态模块共享的本地 API 地址
+
+`api.ts` 导出同一个 `API_ORIGIN` 常量供 [runtime.ts](runtime-status.md) 使用。RuntimeStatusPanel 只读 `GET /api/v1/runtime`，并不使用生成任务轮询接口；没有后台 GPU 监控。后端区分已配置选项、模型文件就绪和 GPU 尚未测量。
