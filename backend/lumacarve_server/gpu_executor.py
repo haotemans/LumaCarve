@@ -175,6 +175,8 @@ class GpuExecutorSupervisor:
             process.close()
         if conn is not None:
             conn.close()
+        if process is not None and self.monitor is not None:
+            self.monitor.fail_remote_active()
         self._state = "stopped"
         self._residency = {
             "model_id": None, "path": None, "state": "unloaded",
