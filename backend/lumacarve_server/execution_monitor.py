@@ -143,6 +143,18 @@ class ExecutionMonitor:
             self._components = [dict(item) for item in components]
             self._component_status.update({key: value for key, value in phase_status.items() if key in self._component_status})
 
+    def fail_remote_active(self) -> None:
+        """Close orphaned events when a supervised GPU child terminates."""
+        with self._lock:
+            for item in self._active.values():
+                event = dict(item)
+                started = event.pop("_started_monotonic", time.perf_counter())
+                event["status"] = "failed"
+                event["ended_at"] = time.time()
+                event["duration_ms"] = max(0.0, round((time.perf_counter() - started) * 1000, 2))
+                self._events.append(event)
+            self._active.clear()
+
     def snapshot(self, limit: int = 40) -> dict[str, Any]:
         if not 1 <= limit <= 80:
             raise ValueError("Invalid execution timeline limit")
