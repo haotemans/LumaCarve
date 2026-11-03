@@ -55,6 +55,7 @@ const recent = computed(() => studio.history.filter(o => o.modelId === studio.mo
 let pollTimer: number | undefined;
 onMounted(() => {
   void studio.loadRecent();
+  void studio.syncLocalCheckpoints();
   if (!studio.runtime && !studio.runtimeLoading) void studio.refreshRuntime();
   pollTimer = window.setInterval(() => { if (studio.activeJobId) void studio.pollActive(); }, 1500);
 });
@@ -194,7 +195,12 @@ function start() { feedback.value = ''; void studio.submit(); }
             </select>
             <ChevronDown :size="16"/>
           </div>
-          <div class="model-meta"><span class="tiny-dot" :class="{green:studio.modelId==='anima-base-1'}"/>{{studio.modelId==='anima-base-1'?'Anima 推理适配器':'模型适配未接入'}}</div>
+          <div class="model-meta"><span class="tiny-dot" :class="{green:studio.backendReady}"/>{{studio.modelId!=='anima-base-1'?'模型适配未接入':studio.backendReady?'后端模型已就绪':studio.backendSnapshot?'模型已发现，依赖未就绪':'未安装完整 Anima 模型'}}</div>
+          <div v-if="studio.modelId==='anima-base-1'" class="under-panel-note">
+            <span v-if="studio.backendSnapshot" :title="studio.backendSnapshot">已验证目录：{{studio.backendSnapshot}}</span>
+            <RouterLink v-else to="/models" class="tiny-text-button">前往模型库安装 →</RouterLink>
+            <button type="button" class="tiny-text-button" title="重新扫描后端" @click="studio.syncLocalCheckpoints()"><RotateCcw :size="12"/>刷新模型</button>
+          </div>
         </section>
 
         <section v-if="studio.workflow.intent!=='create'" class="panel reference-panel">
@@ -304,6 +310,13 @@ function start() { feedback.value = ''; void studio.submit(); }
           <button class="primary-action" :disabled="!studio.canSubmit" @click="start"><CirclePlay :size="19"/>{{busy?'生成中…':'开始生成'}}<span class="button-arrow">↗</span></button>
         </div>
         <div v-if="studio.jobError" class="inline-error" role="alert">{{studio.jobError}}</div>
+        <div v-if="studio.modelId==='anima-base-1' && studio.checkpointMismatch" class="studio-ready-hint">
+          <span>当前预设中的模型路径与后端快照不一致</span>
+          <button class="tiny-text-button" @click="studio.edit('model','checkpoint',studio.backendSnapshot ?? '')">使用已安装快照</button>
+        </div>
+        <div v-if="studio.modelId==='anima-base-1' && !studio.backendReady" class="studio-ready-hint">
+          <span>后端 Anima 模型尚未就绪</span><RouterLink to="/models">检查模型库 →</RouterLink>
+        </div>
         <div v-if="studio.modelId!=='anima-base-1' || studio.workflow.intent!=='create'" class="inline-notice" role="status">
           当前只有 Anima 文字生成连接到真实推理后端；其它模式保留为界面预设。
         </div>
