@@ -86,10 +86,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if api.state.job_queue.adapter.ready else "not_connected"
             ),
             "configured_engine": settings.inference_backend,
-            "gpu": {"available": False, "measured": False},
+            # A GPU probe is deliberately not executed by the HTTP API.
+            # "Unknown" is distinct from "not available".
+            "gpu": {"available": None, "measured": False},
             "policy": "no_model_loaded_on_api_startup",
             "mode": "local_only",
             "inference_offload": settings.inference_offload,
+            "memory_planner": {
+                # Diffusers automatic CPU offload is NOT the planned AMEP
+                # predictive residency/scheduling implementation.
+                "adaptive": "not_implemented",
+                "current": settings.inference_offload,
+            },
+            "optimization": {
+                # These are CONFIGURATION values, not evidence that a Triton
+                # kernel has been loaded, used, benchmarked or accepted.
+                "state": "configured_only",
+                "validated_on_gpu": False,
+                "anima": {
+                    "adaln": settings.anima_triton,
+                    "rope": settings.anima_triton_rope,
+                    "residual": settings.anima_triton_residual,
+                    "ffn": settings.anima_triton_ffn,
+                },
+            },
             "graph_scheduler": scheduler_backend(),
             "queue_scheduler": api.state.job_queue.queue_backend,
             "queue_scheduler_error": api.state.job_queue.fatal_error,

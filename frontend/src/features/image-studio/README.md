@@ -1,16 +1,20 @@
 # Image Studio · 图像工作室
 
-**源代码按功能集中**，避免视图、Graph 和样式散落在不同目录。迁移仅修改源码位置和导入路径，保留原有对外工作流格式、参数与 UI 行为。
+LumaCarve 采用**参数式创作界面 + 内部 Graph 数据结构**。概念边界见 [GLOSSARY.md](GLOSSARY.md)。Graph JSON 仍是 API 的唯一执行配置来源，但用户不需要查看或操作节点图。公开界面以模型/LoRA/参数/预览/任务状态为主，尽可能降低 React 对 CPU 和 GPU 的占用。
 
-| 代码 | 同步 Markdown | 核心职责 |
+| 源码 | 文档 | 职责 |
 |---|---|---|
-| `ImageStudioPage.tsx` | [docs/ImageStudioPage.md](docs/ImageStudioPage.md) | 图像创作/编辑、参考图、蒙版、LoRA、参数视图 |
-| `workflow.ts` | [docs/workflow.md](docs/workflow.md) | 统一 Graph 数据与参数暴露结构 |
-| `GraphCanvas.tsx` | [docs/GraphCanvas.md](docs/GraphCanvas.md) | React Flow 节点编辑，仅 Graph 模式按需加载 |
-| `image-studio.css` | [docs/image-studio-css.md](docs/image-studio-css.md) | 轻量 UI 样式、断点和可访问性 |
+| `ImageStudioPage.tsx` | [ImageStudioPage.md](docs/ImageStudioPage.md) | 参数式工作台、输入素材、结果及任务控制 |
+| `workflow.ts` | [workflow.md](docs/workflow.md) | 唯一可序列化 Graph JSON，服务端校验兼容 |
+| `api.ts` | [api.md](docs/api.md) | Anima 作业提交、状态、取消、真实 PNG 输出 |
+| `runtime.ts` + `RuntimeStatusPanel.tsx` | [runtime-status.md](docs/runtime-status.md) | 严格读取只读状态，无 GPU 探测/自动轮询 |
+| `image-studio.css` | [image-studio-css.md](docs/image-studio-css.md) | 响应式轻量参数 UI 和状态面板 |
+| `GraphCanvas.tsx`（保留） | [GraphCanvas.md](docs/GraphCanvas.md) | 旧节点编辑器代码，仅内部备用；不在工作台导入 |
 
-依赖方向：`ImageStudioPage` → `workflow`；图编辑器 `GraphCanvas` → `workflow`。Graph 编辑器以 `React.lazy` 在需要时引入，参数模式不额外创建第二套状态。Graph/参数模式都不直接调用 GPU。
+## 功能真实性
 
-验证：`cd frontend && npm run build`（TypeScript 类型检查 + Vite 打包）。
+- Anima Base 1.0 文字生成已接入本地 FastAPI/SQLite 作业和真实 PNG 输出，但仍需用户自行安装完整权重及兼容 CUDA，未进行 GPU 实测。
+- Qwen 等模型、图像编辑和训练仍处于前端能力预设/后端开发阶段；不显示假的成功结果。
+- `GET /api/v1/runtime` 提供配置状态，不代表 GPU 已运行；`auto` CPU 卸载并非尚未实现的 AMEP 智能自动均衡；Triton 实验开关不等于经过测试的性能提升。
 
-当前生图、编辑、训练均尚未接入真实 PyTorch 执行引擎。UI 示例预览不能当作生成结果。
+验证命令：`cd frontend && npm run test:runtime && npm run build`。后端测试：`python -m unittest discover -s backend/tests -v`。
