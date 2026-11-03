@@ -37,15 +37,6 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
         with lock:
             connection.send(message)
 
-    def heartbeat() -> None:
-        while living.wait(0.0) and living.is_set():
-            try:
-                send({"type": "heartbeat", "at": time.monotonic()})
-            except (BrokenPipeError, EOFError, OSError):
-                break
-            if not living.wait(HEARTBEAT_INTERVAL):
-                break
-
     # Event.wait() returns True when stopped; do not busy-loop.
     def heartbeat_loop() -> None:
         while living.is_set():
@@ -87,10 +78,8 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
                 continue
             if operation == "unload":
                 try:
-                    with monitor.phase("model_unload", model_id=adapter.model_id):
-                        # Anima's own unload already instruments this stage.
-                        result = adapter.unload_idle()
-                    send({"type": "result", "result": result})
+                    result = adapter.unload_idle()
+                    send({"type": "result", "result": result, "residency": adapter.residency})
                 except Exception as exc:
                     send({"type": "error", "error": f"{type(exc).__name__}: {exc}"[:300]})
                 return  # Always exit to release the entire CUDA context.
@@ -102,12 +91,12 @@ def _worker_main(settings: Settings, connection: Connection, cancel: Any) -> Non
                 with monitor.bind_job(str(command["job_id"])):
                     with monitor.phase("job", model_id=adapter.model_id):
                         result = adapter.run(command["workflow"], command["inputs"], cancel)
-                send({"type": "result", "result": result})
+                send({"type": "result", "result": result, "residency": adapter.residency})
             except BaseException as exc:
                 if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                     raise
                 send({"type": "error", "error": f"{type(exc).__name__}: {exc}"[:300],
-                      "cancelled": isinstance(exc, InterruptedError)})
+                      "cancelled": isinstance(exc, InterruptedError), "residency": adapter.residency})
                 # A partial model load / failed LoRA update is unsafe to reuse.
                 if adapter.residency.get("error"):
                     return
@@ -256,7 +245,11 @@ class GpuExecutorSupervisor:
                     self.monitor.update_components(message.get("components", []),
                                                    message.get("phase_detail", {}))
             elif kind == "error":
-                raise InterruptedError(message.get("error", "Cancelled")) if message.get("cancelled") else RuntimeError(message.get("error", "Worker failed"))
+                if isinstance(message.get("residency"), dict):
+                    self._residency = dict(message["residency"])
+                if message.get("cancelled"):
+                    raise InterruptedError(message.get("error", "Cancelled"))
+                raise RuntimeError(message.get("error", "Worker failed"))
             elif kind == expected:
                 return message
             elif kind in ("result", "ready", "stopped"):
@@ -276,8 +269,8 @@ class GpuExecutorSupervisor:
                 self._conn.send({"type": "run", "workflow": workflow, "inputs": inputs,
                                  "job_id": job_id or "unknown"})
                 data = self._receive(expected="result", timeout=None, cancel=cancel)
-                self._residency.update({"model_id": self.model_id, "state": "loaded",
-                                        "verified_release": True})
+                if isinstance(data.get("residency"), dict):
+                    self._residency = dict(data["residency"])
                 return data["result"]
             finally:
                 if self._process is None or not self._process.is_alive():
