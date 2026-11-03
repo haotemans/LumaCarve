@@ -181,6 +181,22 @@ class AnimaAdapter:
             logging.getLogger(__name__).info(
                 "Anima Triton Residual: installed=%d; %s", report.installed, report.reason
             )
+        if self.settings.anima_triton_ffn == "experimental":
+            # The custom GEMM bypasses nn.Linear.__call__, so prohibit it when
+            # CPU offload may install residency hooks on the module hierarchy.
+            if mode == "full":
+                from lumacarve_runtime.kernels.anima_ffn import install_anima_ffn_triton
+
+                report = install_anima_ffn_triton(pipe)
+                import logging
+                logging.getLogger(__name__).info(
+                    "Anima Triton FFN: installed=%d; %s", report.installed, report.reason
+                )
+            else:
+                import logging
+                logging.getLogger(__name__).info(
+                    "Anima Triton FFN skipped: requires inference_offload=full"
+                )
         return pipe, torch
 
     def _lora_path(self, name: str) -> Path:

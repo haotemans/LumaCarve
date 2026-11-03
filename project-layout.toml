@@ -260,3 +260,10 @@ source = ["backend/lumacarve_runtime/kernels/anima_residual.py", "backend/lumaca
 doc = "backend/docs/22-anima-triton-residual.md"
 tests = ["backend/tests/test_anima_residual.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "runtime.anima_ffn_triton"
+source = ["backend/lumacarve_runtime/kernels/anima_ffn.py", "backend/lumacarve_runtime/kernels/_anima_ffn_triton.py", "tools/benchmark_anima_ffn.py"]
+doc = "backend/docs/23-anima-triton-ffn.md"
+tests = ["backend/tests/test_anima_ffn.py"]
+verification = "backend-tests"

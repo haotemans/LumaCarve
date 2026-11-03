@@ -71,3 +71,7 @@ CPU 单元测试通过可证明工作流转换、加载生命周期和保存行�
 ## 第三阶段 · 可选的 Gated Residual 融合
 
 `LUMACARVE_ANIMA_TRITON_RESIDUAL=experimental` 仅在标准 Anima/Cosmos Transformer Block 内融合三个 `hidden_states + gate * branch` 前向计算，不改动 GEMM、GELU 或 LoRA 权重。默认关闭；失败后回退原路径。源码、对照测试、基准详见 [22-anima-triton-residual.md](22-anima-triton-residual.md)。
+
+## 第四阶段 · 可选的 FFN Linear + GELU 融合
+
+`LUMACARVE_ANIMA_TRITON_FFN=experimental` 尝试融合原始 `CosmosTransformerBlock.ff` 中首个 `Linear` 与精确 `GELU`，只在 `inference_offload=full` 且无插件 hooks、LoRA 包装、Autocast、TorchCompile、梯度的兼容路径生效；默认关闭。不修改输出层 Linear。完整条件、Triton/PyTorch/TorchInductor 手动对比和测试见 [23-anima-triton-ffn.md](23-anima-triton-ffn.md)。
