@@ -29,6 +29,7 @@ class Settings:
     max_pending_jobs: int = 16
     inference_offload: str = "auto"  # auto | full | model_cpu
     inference_backend: str = "disabled"  # disabled | anima
+    gpu_executor_mode: str = "subprocess"  # subprocess | inprocess (legacy/testing)
     anima_model_path: Path | None = None
     anima_triton: str = "off"  # off | experimental; requires compatible CUDA and Triton
     anima_triton_rope: str = "off"  # off | experimental; fuse Anima Cosmos Q/K rotary
@@ -40,6 +41,8 @@ class Settings:
     def __post_init__(self) -> None:
         if self.inference_backend not in ("disabled", "anima"):
             raise ValueError("Unsupported inference backend")
+        if self.gpu_executor_mode not in ("subprocess", "inprocess"):
+            raise ValueError("GPU executor mode must be subprocess or inprocess")
         if self.download_region not in ("auto", "cn", "global"):
             raise ValueError("Invalid download region")
         if self.max_asset_bytes < 1024 or self.max_image_pixels < 1024:
@@ -77,6 +80,7 @@ class Settings:
             anima_triton_residual=os.environ.get("LUMACARVE_ANIMA_TRITON_RESIDUAL", "off"),
             anima_triton_ffn=os.environ.get("LUMACARVE_ANIMA_TRITON_FFN", "off"),
             inference_backend=os.environ.get("LUMACARVE_INFERENCE_BACKEND", "disabled"),
+            gpu_executor_mode=os.environ.get("LUMACARVE_GPU_EXECUTOR_MODE", "subprocess"),
             anima_model_path=(
                 Path(os.environ["LUMACARVE_ANIMA_MODEL_PATH"]).expanduser().resolve()
                 if os.environ.get("LUMACARVE_ANIMA_MODEL_PATH") else None
