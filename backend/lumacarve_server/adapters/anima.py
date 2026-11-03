@@ -366,10 +366,13 @@ class AnimaAdapter:
         if self.monitor is not None:
             self.monitor.update_components(self._components, self._phase_status)
             for item in samples:
-                # Hook timings are observational, NOT separate model sub-inference.
-                token = self.monitor.begin(item["key"], model_id=MODEL_ID)
-                self.monitor.finish(token, duration_override_ms=item["duration_ms"],
-                                    timing_source=item["timing_source"], calls=item["calls"])
+                # Preserve actual module-call timestamps and timing source.
+                self.monitor.record_observation(
+                    item["key"], model_id=MODEL_ID,
+                    started_at=item["started_at"], ended_at=item["ended_at"],
+                    duration_ms=item["duration_ms"],
+                    timing_source=item["timing_source"], calls=item["calls"],
+                )
         if cancel.is_set():
             raise InterruptedError("Anima generation cancelled; result was not published")
         if len(images) != 1 or not isinstance(images[0], Image.Image):
