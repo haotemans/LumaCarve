@@ -1,6 +1,6 @@
 # Image Studio · 图像工作室
 
-LumaCarve 采用**参数式创作界面 + 内部 Graph 数据结构**。Graph JSON 仍是 API 的唯一执行配置来源，但用户不需要查看或操作节点图。公开界面以模型/LoRA/参数/预览/任务状态为主，尽可能降低 React 对 CPU 和 GPU 的占用。
+LumaCarve 采用**参数式创作界面 + 内部 Graph 数据结构**。概念边界见 [GLOSSARY.md](GLOSSARY.md)。Graph JSON 仍是 API 的唯一执行配置来源，但用户不需要查看或操作节点图。公开界面以模型/LoRA/参数/预览/任务状态为主，尽可能降低 React 对 CPU 和 GPU 的占用。
 
 | 源码 | 文档 | 职责 |
 |---|---|---|
