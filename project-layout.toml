@@ -267,3 +267,14 @@ source = ["backend/lumacarve_runtime/kernels/anima_ffn.py", "backend/lumacarve_r
 doc = "backend/docs/23-anima-triton-ffn.md"
 tests = ["backend/tests/test_anima_ffn.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "frontend.image_studio.runtime_status"
+source = [
+  "frontend/src/features/image-studio/runtime.ts",
+  "frontend/src/features/image-studio/RuntimeStatusPanel.tsx",
+  "frontend/scripts/runtime-contract.test.mjs",
+]
+doc = "frontend/src/features/image-studio/docs/runtime-status.md"
+tests = ["frontend/scripts/runtime-contract.test.mjs"]
+verification = "frontend-build"
