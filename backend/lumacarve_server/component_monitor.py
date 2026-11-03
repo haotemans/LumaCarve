@@ -80,8 +80,8 @@ class ComponentForwardProfiler:
         self.torch = torch
         self.pipe = pipe
         self.handles: list[Any] = []
-        self.pending: dict[str, list[tuple[Any | None, float]]] = {}
-        self.samples: dict[str, list[tuple[Any | None, Any | None, float]]] = {}
+        self.pending: dict[str, list[tuple[Any | None, float, float]]] = {}
+        self.samples: dict[str, list[tuple[Any | None, Any | None, float, float, float]]] = {}
         self.connected: set[str] = set()
 
     def _cuda_event(self) -> Any | None:
@@ -103,7 +103,7 @@ class ComponentForwardProfiler:
 
         def pre(_module: Any, _args: Any) -> None:
             try:
-                self.pending[key].append((self._cuda_event(), time.perf_counter()))
+                self.pending[key].append((self._cuda_event(), time.perf_counter(), time.time()))
             except Exception:
                 pass
 
@@ -111,10 +111,10 @@ class ComponentForwardProfiler:
             try:
                 if not self.pending[key]:
                     return
-                start_event, start_time = self.pending[key].pop()
+                start_event, start_time, start_wall = self.pending[key].pop()
                 end_event = self._cuda_event() if start_event is not None else None
                 elapsed = max(0.0, (time.perf_counter() - start_time) * 1000)
-                self.samples[key].append((start_event, end_event, elapsed))
+                self.samples[key].append((start_event, end_event, elapsed, start_wall, time.time()))
             except Exception:
                 pass
 
@@ -157,7 +157,7 @@ class ComponentForwardProfiler:
                 continue
             gpu_elapsed = 0.0
             can_measure_gpu = True
-            for start, end, _wall in samples:
+            for start, end, _wall, _begin, _finish in samples:
                 if start is None or end is None:
                     can_measure_gpu = False
                     break
@@ -177,5 +177,7 @@ class ComponentForwardProfiler:
             observations.append({
                 "key": key, "duration_ms": round(max(0.0, elapsed), 2),
                 "calls": len(samples), "timing_source": source,
+                "started_at": min(sample[3] for sample in samples),
+                "ended_at": max(sample[4] for sample in samples),
             })
         return observations, status
