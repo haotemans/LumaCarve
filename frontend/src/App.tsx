@@ -115,7 +115,7 @@ export default function App() {
   const isLibrary = page === 'gallery' || page === 'datasets';
 
   return (
-    <div className="lc-shell optical-theme">
+    <div className={'lc-shell optical-theme'+(page==='generate'?' lc-low-gpu':'')}>
       <div className="ambient-stage" aria-hidden="true">
         <span className="aura-blob blob-one" />
         <span className="aura-blob blob-two" />
@@ -139,7 +139,7 @@ export default function App() {
           </nav>
 
           <div className="lc-header-actions">
-            <span className="lc-gpu-indicator" title="未连接后端，暂无 GPU 遥测">
+            <span className="lc-gpu-indicator" title="GPU 遥测未采集；— 不表示设备不可用">
               <svg viewBox="0 0 36 36" width="28" height="28" aria-hidden="true">
                 <circle cx="18" cy="18" r="14" stroke="#dee5f2" strokeWidth="3.5" fill="none" />
                 <circle cx="18" cy="18" r="14" stroke="#aab7dd" strokeWidth="3.5" fill="none" strokeDasharray="6 84" transform="rotate(-90 18 18)"/>
@@ -165,7 +165,7 @@ export default function App() {
               <input ref={searchRef} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索素材..." aria-label="搜索素材"/>
               <kbd><Command size={10}/> K</kbd>
             </label>}
-            {!isLibrary && <span className="lc-workspace-state"><span/> LOCAL STUDIO <b>UI PREVIEW</b></span>}
+            {!isLibrary && <span className="lc-workspace-state"><span/> LOCAL STUDIO <b>本地服务按需连接</b></span>}
           </div>
         </div>
 
@@ -184,7 +184,7 @@ export default function App() {
         <footer className="lc-footer">
           <span>LUMACARVE <span className="lc-foot-divider">/</span> 琢影</span>
           <span>{active.label} <span className="lc-foot-divider">·</span> LOCAL WORKSPACE</span>
-          <span>UI DEMO — 未连接生成 / 编辑 / 训练引擎</span>
+          <span>Anima 生成需启用本地服务 · 编辑与训练仍在开发</span>
         </footer>
       </div>
 
