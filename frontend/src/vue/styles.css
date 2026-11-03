@@ -455,6 +455,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:700px){.dataset-toolbar,.dataset-select-row{flex-wrap:wrap}.dataset-select{max-width:none;flex:1}.dataset-toolbar .utility-actions{width:100%;justify-content:flex-end}.task-filter-grid{grid-template-columns:repeat(3,1fr)}.system-queue-overview{gap:12px;flex-wrap:wrap}.system-queue-overview>span{flex-basis:100%}}
 .studio-ready-hint{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e3def5;background:#f7f5ff;border-radius:10px;padding:12px 14px;font-size:11px;color:#6e6797}
 .studio-ready-hint a{white-space:nowrap;color:var(--accent);font-weight:760}
+.residency-board{margin:0 0 20px;border-color:#dbdef2;background:linear-gradient(145deg,#fff 60%,#f5f4ff)}
+.residency-header,.residency-title,.residency-actions{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.residency-title{justify-content:flex-start;color:#695cc9}
+.residency-title>div{display:flex;flex-direction:column;gap:3px}
+.residency-title strong{font-size:14px;color:#39455e}
+.residency-title small{font-size:10px;color:#8995aa}
+.residency-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:19px 0}
+.residency-metric{border:1px solid #e9eaf5;background:#fff;border-radius:11px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:7px}
+.residency-metric span{font-size:10px;color:#8995aa}
+.residency-metric strong{font-size:12px;overflow-wrap:anywhere;color:#46526c}
+.residency-actions{border-top:1px solid #ebecf5;padding-top:13px}
+.residency-help{font-size:10px;color:#8b96ab;line-height:1.7}
+.residency-actions button{flex-shrink:0}
+@media(max-width:700px){.residency-grid{grid-template-columns:1fr}.residency-actions{align-items:stretch;flex-direction:column}.residency-header{align-items:flex-start}}
 .model-snapshot-ready{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:11px;color:var(--sub)}
 .model-snapshot-ready strong{margin-left:auto;max-width:54%;text-align:right;overflow-wrap:anywhere;color:var(--ink);font-size:10px}
 .training-dataset-preview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:10px}
