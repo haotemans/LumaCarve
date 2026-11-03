@@ -230,3 +230,4 @@ async function nextPage(direction: -1 | 1) {
       </aside>
     </div>
   </div>
+</template>
