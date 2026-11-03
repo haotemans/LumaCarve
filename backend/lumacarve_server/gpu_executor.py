@@ -157,10 +157,8 @@ class GpuExecutorSupervisor:
 
     def _terminate(self) -> None:
         process, conn = self._process, self._conn
-        self._process = None
-        self._conn = None
-        self._cancel = None
-        self._last_heartbeat = None
+        # Keep ownership until OS process exit is confirmed. If kill/reap
+        # fails, the reference must survive so no replacement can be spawned.
         if process is not None:
             process.join(timeout=0.2)
             if process.is_alive():
@@ -173,6 +171,10 @@ class GpuExecutorSupervisor:
                 self._state = "failed"
                 raise RuntimeError("GPU executor did not terminate; refusing to reload another model")
             process.close()
+        self._process = None
+        self._conn = None
+        self._cancel = None
+        self._last_heartbeat = None
         if conn is not None:
             conn.close()
         if process is not None and self.monitor is not None:
@@ -190,6 +192,9 @@ class GpuExecutorSupervisor:
             ], {})
 
     def _start(self) -> None:
+        if self._state == "failed":
+            # A previous teardown could not confirm process exit.
+            self._terminate()
         if self._process is not None and self._process.is_alive():
             return
         # Any prior process must be fully reaped before a new CUDA context is made.
