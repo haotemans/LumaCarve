@@ -42,6 +42,7 @@ const labels: Record<ExecutionStage, string> = {
   te: '文本编码', vae: 'VAE', dit: 'DiT',
 };
 const phaseStatus: Record<PhaseStatus, string> = { running: '运行中', completed: '完成', failed: '失败', cancelled: '取消' };
+const componentPhases = [{key:'te' as const,name:'Text Encoder'},{key:'vae' as const,name:'VAE'},{key:'dit' as const,name:'DiT'}];
 const displayDuration = (ms: number | null) => ms === null ? '—' : ms >= 1000 ? (ms / 1000).toFixed(2) + ' 秒' : Math.round(ms) + ' 毫秒';
 function stop() {
   if (timer !== undefined) clearInterval(timer);
@@ -163,7 +164,7 @@ onUnmounted(() => { stop(); document.removeEventListener('visibilitychange', vis
       <section class="panel monitor-details monitor-phase-panel">
         <div class="panel-heading"><div class="panel-title"><Cpu :size="18"/><h2>组件级阶段</h2></div></div>
         <div class="component-phase-grid">
-          <div v-for="item in [{key:'te', name:'Text Encoder'}, {key:'vae', name:'VAE'}, {key:'dit', name:'DiT'}] as const" :key="item.key" class="component-phase-item">
+          <div v-for="item in componentPhases" :key="item.key" class="component-phase-item">
             <strong>{{item.name}}</strong><span>{{timeline?.phase_detail[item.key]==='instrumentation_not_connected'?'等待 Worker 埋点':'尚无实测阶段'}}</span>
           </div>
         </div>
