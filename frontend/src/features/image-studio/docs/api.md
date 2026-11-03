@@ -13,4 +13,4 @@
 
 ## 与运行状态模块共享的本地 API 地址
 
-`api.ts` 导出同一个 `API_ORIGIN` 常量供 [runtime.ts](runtime-status.md) 使用。RuntimeStatusPanel 只读 `GET /api/v1/runtime`，并不使用生成任务轮询接口；没有后台 GPU 监控。后端区分已配置选项、模型文件就绪和 GPU 尚未测量。
+`api.ts` 导出同一个 `API_ORIGIN` 常量供 [runtime.ts](runtime-status.md) 使用。Vue SystemView / StudioView 只读 `GET /api/v1/runtime`，并不使用生成任务轮询接口；没有后台 GPU 监控。后端区分已配置选项、模型文件就绪和 GPU 尚未测量。
