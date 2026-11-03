@@ -1,7 +1,7 @@
 # Runtime Status · 前后端真实性约束
 
-源码：`../runtime.ts`、`../../vue/views/SystemView.vue`、`../../vue/stores/studio.ts`。
-测试：`frontend/scripts/runtime-contract.test.mjs`，并通过 `frontend/.github` CI 执行。
+源码：`../runtime.ts`、`../../../vue/views/SystemView.vue`、`../../../vue/stores/studio.ts`。
+测试：`frontend/scripts/runtime-contract.test.mjs`，并通过仓库根目录 `.github/workflows/frontend-ci.yml` 执行。
 
 `GET /api/v1/runtime` 只返回 FastAPI 已知的环境配置与调度状态，不会为显示页面而初始化 CUDA、加载模型或运行 GPU Benchmark。
 
