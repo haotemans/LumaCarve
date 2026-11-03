@@ -14,6 +14,7 @@ export interface RuntimeSnapshot {
   adaptivePlanner: 'not_implemented' | 'unknown';
   optimizationState: 'configured_only' | 'unknown';
   verifiedOnGPU: boolean;
+  queue: { queued: number; running: number; capacity: number } | null;
   kernels: Record<'adaln' | 'rope' | 'residual' | 'ffn', KernelMode>;
 }
 
@@ -38,6 +39,8 @@ export function parseRuntimeSnapshot(raw: unknown): RuntimeSnapshot {
   const planner = record(value.memory_planner);
   const optimization = record(value.optimization);
   const kernels = record(optimization?.anima);
+  const queue = record(value.queue);
+  const counts = record(queue?.counts);
   return {
     engine: value.engine === 'anima' || value.engine === 'not_connected'
       ? value.engine : 'unknown',
@@ -51,6 +54,8 @@ export function parseRuntimeSnapshot(raw: unknown): RuntimeSnapshot {
     adaptivePlanner: planner?.adaptive === 'not_implemented' ? 'not_implemented' : 'unknown',
     optimizationState: optimization?.state === 'configured_only' ? 'configured_only' : 'unknown',
     verifiedOnGPU: optimization?.validated_on_gpu === true,
+    queue: queue && counts && typeof counts.queued === 'number' && typeof counts.running === 'number' && typeof queue.capacity === 'number'
+      ? { queued: counts.queued, running: counts.running, capacity: queue.capacity } : null,
     kernels: {
       adaln: kernelMode(kernels?.adaln),
       rope: kernelMode(kernels?.rope),

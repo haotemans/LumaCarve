@@ -13,3 +13,7 @@
 **性能**：全部 CSS 静态，零 React/React Flow 运行时，不持续在前端进行 GPU 预测、实时采样或后台渲染；缩略图图片通过 `loading="lazy"` 延迟加载。
 
 验证：`cd frontend && npm run test && npm run build`。实际生成需 Anima 模型权重、CUDA、后端进程。
+
+## 本轮模型文件一致性修复
+
+早期浏览器的 `webkitdirectory` 仅提供本地文件名，不能让后端 Worker 读取这些文件；前端现在优先使用服务端索引返回的 `anima_snapshot` 来选择真正完整的 Diffusers ModularPipeline 目录。`backendReady` 只表示轻量依赖/文件准备完毕，不等于 CUDA 通过。未安装或选中不一致路径时禁用真实生成按钮；API 端双层检查不匹配的 checkpoint，不能悄悄用另一套权重生成。

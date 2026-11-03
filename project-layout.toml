@@ -274,3 +274,17 @@ source = ["frontend/src/features/image-studio/runtime.ts", "frontend/scripts/run
 doc = "frontend/src/features/image-studio/docs/runtime-status.md"
 tests = ["frontend/scripts/runtime-contract.test.mjs"]
 verification = "frontend-build"
+
+[[module]]
+id = "server.datasets"
+source = ["backend/lumacarve_server/datasets.py", "backend/lumacarve_server/routers/datasets.py"]
+doc = "backend/docs/24-dataset-library.md"
+tests = ["backend/tests/test_datasets.py"]
+verification = "backend-tests"
+
+[[module]]
+id = "tools.local_dev"
+source = ["tools/start-dev.ps1", "tools/start-dev.sh"]
+doc = "docs/architecture/04-local-dev-launch.md"
+tests = []
+verification = "frontend-build"

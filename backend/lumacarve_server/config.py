@@ -94,6 +94,10 @@ class Settings:
         return self.data_dir / "assets"
 
     @property
+    def datasets_dir(self) -> Path:
+        return self.data_dir / "datasets"
+
+    @property
     def outputs_dir(self) -> Path:
         return self.data_dir / "outputs"
 
@@ -103,7 +107,7 @@ class Settings:
 
     def ensure_dirs(self) -> None:
         for directory in (
-            self.data_dir, self.models_dir, self.assets_dir, self.outputs_dir,
+            self.data_dir, self.models_dir, self.assets_dir, self.outputs_dir, self.datasets_dir,
             *(self.models_dir / kind for kind in ("dit", "te", "vae", "lora", "checkpoints", "bundles")),
         ):
             directory.mkdir(parents=True, exist_ok=True)

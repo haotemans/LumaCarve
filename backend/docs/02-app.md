@@ -39,3 +39,10 @@ py -m uvicorn lumacarve_server.app:app --host 127.0.0.1 --port 8000
 - 因为普通页面只需在进入工作室时读取一次，不需要实时频繁查询 GPU 显存。
 
 前端由 `frontend/src/features/image-studio/runtime.ts` 严格验证这一结构，并通过 `RuntimeStatusPanel.tsx` 只读展示。实际状态刷新由用户主动触发；不为展示面板采集额外 GPU 性能数据。
+
+
+## 数据集与队列状态更新
+
+`create_app()` 除创建原有单实例 JobQueue 外，还会创建轻量 `DatasetStore`，索引统一保存在 `LumaCarveData/datasets.sqlite3`。数据集路由与所有已有 API 共用相同的本地 Origin 和 TrustedHost 安全规则。
+
+运行时状态新增 `queue.counts`、`queue.capacity`、`queue.running_worker`，全部由现有任务账本读取，不执行 Torch/CUDA 检查。`gpu.measured=false` / `gpu.available=null` 的真实性约束保持不变；不得把队列容量当成 GPU 显存容量。

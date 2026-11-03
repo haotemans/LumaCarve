@@ -41,6 +41,7 @@ cd LumaCarve\backend
 | 本地 GPU worker 唯一所有权 | `lumacarve_server/instance_lock.py` | [16-single-instance-lock.md](docs/16-single-instance-lock.md) | `test_instance_lock.py` |
 | Rust/SQLite 调度桥接 | `lumacarve_runtime/queue_bridge.py` | [15-rust-queue-bridge.md](docs/15-rust-queue-bridge.md) | `test_queue_bridge.py` |
 | 任务队列与历史 | `lumacarve_server/jobs.py` + `routers/jobs.py` | [06-job-queue.md](docs/06-job-queue.md) | `test_jobs.py` |
+| 持久化训练数据集 | `lumacarve_server/datasets.py` + `routers/datasets.py` | [24-dataset-library.md](docs/24-dataset-library.md) | `test_datasets.py` |
 | Anima Base 1.0 推理 | `lumacarve_server/adapters/anima.py` | [17-anima-adapter.md](docs/17-anima-adapter.md) | `test_anima.py` |
 | Anima Triton AdaLN-Zero 试验内核 | `lumacarve_runtime/kernels/anima_adaln.py` + `_anima_adaln_triton.py` | [20-anima-triton.md](docs/20-anima-triton.md) | `test_anima_triton.py` |
 | Anima Triton Q/K RoPE 试验内核 | `lumacarve_runtime/kernels/anima_rope.py` + `_anima_rope_triton.py` | [21-anima-triton-rope.md](docs/21-anima-triton-rope.md) | `test_anima_rope.py` |
@@ -87,12 +88,13 @@ Rust 代码位于 [`scheduler/`](../scheduler/README.md)。它包含 DAG 计划�
 
 - `GET /api/v1/health`：可用。仅表示本地 API 存活。
 - `GET /api/v1/runtime`：可用。目前报告推理后端未连接。
-- `GET /api/v1/models`：可用。只扫描受控目录的 `.safetensors` 文件，不证明模型能运行。
+- `GET /api/v1/models`：可用。索引普通权重，额外报告后端有效 Anima 快照与本地资源就绪状态；不探测 CUDA。
 - `POST /api/v1/assets`、`GET /api/v1/assets/{id}`：可用。校验并存取 PNG/JPEG/WebP。
 - `POST /api/v1/workflows/validate`：可用。校验前端 Graph JSON 结构、参数和类型。
-- `GET /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`POST /api/v1/jobs/{id}/cancel`：可用。持久化任务状态。
+- `GET /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`POST /api/v1/jobs/{id}/cancel`：可用。任务状态、按状态分页、队列数量。
 - `POST /api/v1/jobs`：默认返回 503；显式启用完整 Anima 模型后可创建真实推理任务，必须在支持的 GPU 上实测。
 - `GET /api/v1/outputs/{output_id}`：读取确实已生成的 PNG 文件，未生成时返回 404。
+- `GET/POST /api/v1/datasets` 与 `/api/v1/datasets/{id}/images`：已连接持久化数据集、图片上传/读取、Caption 编辑及删除，无需 GPU。
 - `GET /api/v1/downloads/catalog`：返回国内/国际模型仓库目录。
 - `POST /api/v1/downloads`、`GET /api/v1/downloads/{id}`：显式启用后下载 ModelScope/Hugging Face 模型，查询下载状态；不自动载入 GPU。
 

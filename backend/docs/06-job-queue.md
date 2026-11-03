@@ -36,3 +36,10 @@ HTTP API：
 ## Windows SQLite 文件句柄修复
 
 此前使用 `with sqlite3.connect(...) as db` 只处理事务提交/回滚，**不会关闭连接**；Windows 临时目录清理因此触发 `WinError 32`。现在 `JobStore._connect()` 是专用 Context Manager，所有查询/原子领取均在事务结束时 `connection.close()`，同时保留异常回滚和连接独占锁。`test_jobs.py` 验证离开上下文后连接不可使用，Windows CI 再检验真实文件释放。
+
+
+## 2026-11 · 高效分页与只读队列快照
+
+`GET /api/v1/jobs?limit=30&offset=0&state=queued` 返回 `jobs`、`total`、`counts`（queued/running/completed/failed/cancelled）、`limit`、`offset`。默认 `limit=50`，最大 100；非法状态、负数页偏移均返回 422。该接口仍兼容原先仅读取 `jobs` 的客户端。
+
+`JobStore.list()` 已从 **先取 N 个 ID 再逐个开启 SQLite 连接读取** 改为一次有界 SQL SELECT，避免刷新大历史列表时 N+1 连接开销。`JobStore.counts()` 仅按状态分组计算，不执行 GPU 查询。`GET /api/v1/runtime` 的 `queue` 返回现有状态数量和最大队列容量，前端无需另启 GPU 轮询服务。

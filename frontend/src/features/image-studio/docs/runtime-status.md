@@ -19,3 +19,6 @@ cd frontend
 npm run test:runtime
 npm run build
 ```
+
+
+`queue` 增加任务状态数量、队列容量和 Worker 状态，来自现有 SQLite 账本，不表示 GPU 探测。`GPU/VRAM` 若尚未实际测量继续显示未知（—）。

@@ -1,6 +1,6 @@
 # 03 · 用户数据目录与缓存结构
 
-**设计目标，不是当前目录迁移结果。** 当前代码真实使用 `LumaCarveData/model/`、`assets/`、`outputs/` 和根部 `jobs.sqlite3`。本文件定义将来统一数据格式，迁移前保持兼容。
+**下方树是未来完整统一数据规范，而非已经完成的迁移。** 当前已实现数据仍位于 `LumaCarveData/model/`、`assets/`、`outputs/`、根部 `jobs.sqlite3`。**新增持久化数据集**已经采用 `LumaCarveData/datasets/{dataset_id}/{sha256}.{png|jpg|webp}` 与同目录 `{sha256}.tags.txt`，元数据存储在根部 `datasets.sqlite3`。未来正式目录规划须保留当前已写入数据，不能未经迁移就更换路径。详见 [数据集模块](../../backend/docs/24-dataset-library.md)。
 
 ```text
 LumaCarveData/                                # 默认位置，可由 LUMACARVE_DATA_DIR 自定义

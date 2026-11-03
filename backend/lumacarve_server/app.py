@@ -9,10 +9,12 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import Settings
+from .datasets import DatasetStore
 from lumacarve_runtime.rust_bridge import scheduler_backend
 from .model_downloads import ModelDownloadManager
 from .routers.downloads import router as downloads_router
 from .routers.outputs import router as outputs_router
+from .routers.datasets import router as datasets_router
 from .jobs import DisabledInference, JobQueue, JobStore
 
 def make_inference_adapter(settings: Settings):
@@ -49,12 +51,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     api.state.settings = settings
     api.state.model_downloads = ModelDownloadManager(settings)
+    api.state.datasets = DatasetStore(settings)
     api.include_router(workflow_router)
     api.include_router(models_router)
     api.include_router(assets_router)
     api.include_router(jobs_router)
     api.include_router(downloads_router)
     api.include_router(outputs_router)
+    api.include_router(datasets_router)
 
     # CORS is not CSRF protection. Reject disallowed Origins even on simple
     # multipart POST requests, before routes read or persist any data.
@@ -68,7 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
-        allow_methods=["GET", "POST", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Content-Type"],
     )
     # Bind to loopback by default and reject DNS rebinding via the Host header.
@@ -113,6 +117,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "graph_scheduler": scheduler_backend(),
             "queue_scheduler": api.state.job_queue.queue_backend,
             "queue_scheduler_error": api.state.job_queue.fatal_error,
+            "queue": {
+                "counts": api.state.job_queue.store.counts(),
+                "capacity": settings.max_pending_jobs,
+                "running_worker": api.state.job_queue.queue_backend != "not_started",
+            },
         }
 
     return api
