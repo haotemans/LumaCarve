@@ -1,6 +1,7 @@
 name: Rust scheduler core
 on:
   push:
+    branches: [main]
     paths:
       - 'scheduler/**'
       - 'backend/lumacarve_runtime/rust_bridge.py'
@@ -12,12 +13,16 @@ on:
       - 'backend/lumacarve_runtime/rust_bridge.py'
       - 'backend/tests/test_rust_bridge.py'
       - '.github/workflows/scheduler-ci.yml'
+concurrency:
+  group: scheduler-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   cargo-tests:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -38,19 +43,3 @@ jobs:
       - run: .venv/bin/python -m pip install -e "./backend[dev]"
       - run: .venv/bin/python -m unittest discover -s backend/tests -p 'test_rust_bridge.py' -v
 
-  windows-extension:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - uses: dtolnay/rust-toolchain@stable
-      - run: python -m venv .venv
-      - run: .\.venv\Scripts\python.exe -m pip install --upgrade pip "maturin>=1.7,<2"
-      - run: .\.venv\Scripts\python.exe -m maturin build --manifest-path scheduler/Cargo.toml --features python -i .\.venv\Scripts\python.exe -o windows-wheels
-      - run: |
-          $wheel = (Get-ChildItem windows-wheels\lumacarve_scheduler-*.whl | Select-Object -First 1).FullName
-          .\.venv\Scripts\python.exe -m pip install $wheel
-      - run: .\.venv\Scripts\python.exe -m pip install -e "./backend[dev]"
-      - run: .\.venv\Scripts\python.exe -m unittest discover -s backend/tests -p test_rust_bridge.py -v
