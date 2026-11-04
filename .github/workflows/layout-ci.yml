@@ -1,6 +1,7 @@
 name: Project module layout
 on:
   push:
+    branches: [main]
     paths:
       - 'project-layout.toml'
       - 'docs/**'
@@ -18,6 +19,10 @@ on:
       - 'backend/**'
       - 'scheduler/**'
       - '.github/workflows/layout-ci.yml'
+concurrency:
+  group: layout-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   layout:
     runs-on: ubuntu-latest

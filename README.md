@@ -14,6 +14,7 @@ LumaCarve is a **modular monorepo**, not a collection of services. Source files,
 - [Technology stack and decisions](docs/architecture/02-tech-stack.md) · [User data and cache layout](docs/architecture/03-data-layout.md)
 - [ADR-0001: Modular monorepo](docs/architecture/ADR-0001-modular-monorepo.md)
 - [Module → Markdown → Test manifest](project-layout.toml) · [Image Studio feature](frontend/src/features/image-studio/README.md)
+- [Windows local builds / Linux GitHub Actions builds](docs/ci-build.md)
 - [Backend module guide](backend/README.md)
 
 Vue 3 graphical screens live in `frontend/src/vue/`; shared workflow JSON and local HTTP API definitions remain in `frontend/src/features/image-studio/`. React/React Flow and legacy demo pages were removed. See [Vue UI](frontend/README.md) and [ADR 0001](docs/architecture/adr/0001-vue3-frontend.md).

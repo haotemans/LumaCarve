@@ -1,6 +1,7 @@
 name: Frontend build
 on:
   push:
+    branches: [main]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
@@ -8,6 +9,10 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest

@@ -19,6 +19,6 @@ npm install
 npm run desktop:build
 ```
 
-Windows PowerShell may need `npm.cmd` rather than `npm`. CI builds unsigned NSIS .exe on Windows and .deb/.AppImage on Linux, uploading installer artifacts to GitHub Actions.
+For normal development, Windows NSIS installers are built and tested locally with `..\\..\\tools\\build-windows.ps1` (from the repository root use `.\\tools\\build-windows.ps1`). Linux `.deb`/`.AppImage` installers are built only when `gh` dispatches the Linux GitHub Actions workflow. The CLI does not run the build itself. See [CI and local builds](../../docs/ci-build.md).
 
 See `docs/architecture/adr/0002-tauri2-sidecar.md`.
