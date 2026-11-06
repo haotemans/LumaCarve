@@ -1,67 +1,11 @@
-name: Publish verified first desktop preview
-on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-first-preview.yml'
-  workflow_dispatch:
-permissions:
-  contents: write
-  actions: read
+# Legacy NSIS/DEB release recipe intentionally disabled. Old releases and tags
+# remain untouched; new releases accept portable ZIP and AppImage artifacts only.
+name: Legacy installer publishing (disabled)
+on: {}
+
 jobs:
-  publish:
-    runs-on: ubuntu-22.04
+  archived:
+    if: false
+    runs-on: ubuntu-latest
     steps:
-      - name: Download successful Windows and Linux installers
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          # Both platform jobs of this exact Tauri app revision succeeded.
-          # This is the tested PR #8 run; the additional commits only change publishing YAML.
-          gh run download 41592193608 --repo "$GH_REPO" --name LumaCarve-Windows-NSIS --dir artifacts/windows
-          gh run download 41592193608 --repo "$GH_REPO" --name LumaCarve-Linux-deb-AppImage --dir artifacts/linux
-          mkdir -p release-files
-          mapfile -d '' exes < <(find artifacts/windows -type f -name '*.exe' -print0)
-          mapfile -d '' debs < <(find artifacts/linux -type f -name '*.deb' -print0)
-          mapfile -d '' appimages < <(find artifacts/linux -type f -name '*.AppImage' -print0)
-          if [[ ${#exes[@]} -ne 1 || ${#debs[@]} -ne 1 || ${#appimages[@]} -ne 1 ]]; then
-            echo '::error::Release requires one Windows NSIS, one Linux deb and one AppImage'
-            find artifacts -type f -print
-            exit 1
-          fi
-          cp -- "${exes[0]}" "${debs[0]}" "${appimages[0]}" release-files/
-          (cd release-files && sha256sum ./*.exe ./*.deb ./*.AppImage > SHA256SUMS.txt)
-      - name: Create GitHub prerelease
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: v0.2.0-desktop-preview.1
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "Already published; never overwrite release binaries."
-            exit 0
-          fi
-          cat > notes.md <<'EOF'
-          ## LumaCarve Desktop Preview 1
-
-          First experimental **unsigned** Tauri 2 + Vue 3 desktop installers for Windows x64 and Linux x64.
-
-          - Windows: NSIS .exe installer.
-          - Linux: .deb or .AppImage.
-          - SHA256SUMS.txt included to verify the downloads.
-
-          Built from the verified PR #8 Windows/Linux CI artifacts. The app includes a lightweight local FastAPI core and Vue desktop UI.
-
-          **GPU generation is not ready in this preview.** PyTorch, CUDA/Triton, Anima weights and the GPU inference worker are not included. Windows SmartScreen can warn about unsigned software; install only if you accept this limitation.
-          EOF
-          gh release create "$RELEASE_TAG" release-files/* \
-            --repo "$GH_REPO" \
-            --target "$GITHUB_SHA" \
-            --title "LumaCarve v0.2.0 Desktop Preview 1" \
-            --notes-file notes.md \
-            --prerelease
+      - run: echo 'Installer publishing is disabled. See docs/ci-build.md.'
