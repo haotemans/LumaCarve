@@ -50,3 +50,9 @@ AppImage builds are not automatic on PR or push. Verify the run SHA, result, art
 3. Keep historical releases untouched. Do not silently replace assets attached to existing release tags.
 4. No GitHub Actions Windows runner. Windows binaries must be compiled on a local Windows machine; a Linux host cannot validate native Windows startup.
 5. Maintain code, Markdown and tests together; inspect status/diff, preserve unrelated changes, commit related work, and inspect exact GitHub CI SHA and status. Queued CI is not a pass.
+
+## One-off Linux portable prerelease
+
+The first portable Linux prerelease is driven by a new `docs/releases/v0.2.2-portable.md` file. When that file is merged into `main`, the existing Linux AppImage workflow runs once and attempts to publish tag `v0.2.2-portable-preview.1` **only after** compilation, tests, checksum verification, and AppImage extraction inspection pass. The tag is immutable: an existing tag/release causes failure rather than replacement. Normal manual `workflow_dispatch` builds do **not** publish a release.
+
+There is no Windows asset in this Linux-only prerelease. The Windows ZIP must be built with `tools/build-windows.ps1` on a Windows workstation and verified separately; do not include stale NSIS installers or rename historical assets.

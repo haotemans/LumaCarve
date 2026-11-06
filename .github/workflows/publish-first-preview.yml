@@ -1,7 +1,9 @@
 # Legacy NSIS/DEB release recipe intentionally disabled. Old releases and tags
 # remain untouched; new releases accept portable ZIP and AppImage artifacts only.
 name: Legacy installer publishing (disabled)
-on: {}
+# Retained for reference only: manually invokable, but job is disabled.
+on:
+  workflow_dispatch:
 
 jobs:
   archived:
