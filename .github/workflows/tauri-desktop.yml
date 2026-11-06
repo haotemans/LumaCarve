@@ -1,4 +1,4 @@
-name: Tauri 2 Linux desktop installers
+name: Tauri 2 Linux portable AppImage
 
 # Deliberately dispatch-only: package builds are expensive and are not
 # automatically repeated for every PR, push, or merge.
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   linux-bundle:
-    name: Build Linux x64 deb and AppImage
+    name: Build Linux x64 portable AppImage
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
@@ -40,24 +40,21 @@ jobs:
         run: |
           npm install --no-audit --no-fund --prefer-offline
           npm run test
-      - name: Bundle Linux installers
+      - name: Bundle Linux portable AppImage
         working-directory: frontend
-        run: npm run desktop:build -- --bundles deb,appimage
-      - name: Verify Linux installer artifacts
+        run: npm run desktop:build -- --bundles appimage
+      - name: Verify Linux portable artifact
         shell: bash
         run: |
           set -euo pipefail
-          deb_dir=frontend/src-tauri/target/release/bundle/deb
           appimage_dir=frontend/src-tauri/target/release/bundle/appimage
-          test "$(find "$deb_dir" -maxdepth 1 -name '*.deb' -type f | wc -l)" -eq 1
           test "$(find "$appimage_dir" -maxdepth 1 -name '*.AppImage' -type f | wc -l)" -eq 1
-          sha256sum "$deb_dir"/*.deb "$appimage_dir"/*.AppImage > SHA256SUMS.txt
-      - name: Upload Linux packages and checksums
+          sha256sum "$appimage_dir"/*.AppImage | sed 's|.*/||' > SHA256SUMS.txt
+      - name: Upload Linux portable package and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: LumaCarve-Linux-deb-AppImage
+          name: LumaCarve-Linux-x64-Portable-AppImage
           path: |
-            frontend/src-tauri/target/release/bundle/deb/*.deb
             frontend/src-tauri/target/release/bundle/appimage/*.AppImage
             SHA256SUMS.txt
           if-no-files-found: error
