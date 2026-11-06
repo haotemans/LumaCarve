@@ -1,24 +1,12 @@
-# LumaCarve Desktop · Tauri 2
+# LumaCarve Desktop · Tauri 2 (portable only)
 
-Vue 3 and Tauri 2 share one frontend for Windows and Linux. The native Rust shell starts/stops an embedded PyInstaller FastAPI core sidecar and supplies a random loopback port and per-launch session token. The webview cannot spawn arbitrary processes.
+Tauri 2 hosts the Vue 3 application and starts/stops its bundled lightweight FastAPI sidecar. Its session token and local loopback port are created at each launch.
 
-All mutable data lives under the OS Tauri app data directory in one workspace root (models, datasets, outputs, assets, SQLite); API logs are in its sibling logs directory.
+- Windows: a ZIP containing `LumaCarve.exe`, `lumacarve-api.exe`, `portable.flag`, and `README.txt`. Extract all files, then run `LumaCarve.exe`. The ZIP is **not an installer**.
+- Linux: an AppImage built by the manually dispatched `.github/workflows/tauri-desktop.yml` workflow. Do not build DEB or NSIS installer artifacts for new releases.
+- Portable mutable files are stored beside the app under `LumaCarveData/workspace`; logs under `LumaCarveData/logs`. Windows uses the marker; Linux AppImage uses the outer `APPIMAGE` location. You must place the executable in a writable directory.
+- The Windows launch executable necessarily has an `.exe` suffix; the prohibition applies to **installer packages**, not to the app executable.
+- Windows requires WebView2 Runtime; Linux requires a compatible AppImage runtime environment.
+- The lightweight desktop core **does not contain PyTorch, CUDA, Triton, GPU Worker, or Anima weights**. Training and actual GPU generation are not bundled and remain unverified.
 
-This **core desktop bundle does not contain PyTorch, CUDA, Triton or Anima weights**. Full GPU inference requires a later separately managed worker installation. No fake GPU capabilities are claimed.
-
-## Local build
-
-Install Python 3.11, Node 22, Rust and native Tauri system packages:
-
-```sh
-python -m pip install -e ./backend pyinstaller
-python tools/generate-desktop-icons.py
-python tools/build-sidecar.py
-cd frontend
-npm install
-npm run desktop:build
-```
-
-For normal development, Windows NSIS installers are built and tested locally with `..\\..\\tools\\build-windows.ps1` (from the repository root use `.\\tools\\build-windows.ps1`). Linux `.deb`/`.AppImage` installers are built only when `gh` dispatches the Linux GitHub Actions workflow. The CLI does not run the build itself. See [CI and local builds](../../docs/ci-build.md).
-
-See `docs/architecture/adr/0002-tauri2-sidecar.md`.
+Build Windows locally via `.\tools\build-windows.ps1` from the repo root and Linux AppImage through the manual Actions workflow. See [CI and portable builds](../../docs/ci-build.md), [Tauri architecture](../../docs/architecture/adr/0002-tauri2-sidecar.md).

@@ -1,54 +1,52 @@
-# CI and desktop build workflow (low traffic)
+# CI and portable desktop build workflow
 
-## Platform ownership
+## Portable-only distribution policy
 
-- **Windows x64:** Build and test on a local Windows machine using `tools/build-windows.ps1`. No Windows cloud runner is used for normal development or installer packaging.
-- **Linux x64:** GitHub Actions runners build `.deb` and `.AppImage` packages. The `gh` CLI **only triggers, monitors and downloads** runs; it never compiles or executes the tests itself.
-- **Fast CI:** Backend, frontend, layout and scheduler checks run on Linux for pull requests and pushes to `main`, filtered by changed paths. Unrelated feature-branch pushes do not duplicate PR checks.
-- **Desktop packages:** The expensive Linux Tauri workflow runs **only** through `workflow_dispatch`. Merge/push alone does not package or publish a release.
+- **Windows x64:** Build **only** `LumaCarve-Windows-x64-Portable.zip` locally. Extract fully to a writable directory, then run `LumaCarve.exe`. The ZIP contains `lumacarve-api.exe`, `portable.flag`, and `README.txt`; it contains **no NSIS installer**. `.exe` is still the Windows application executable; avoiding a Windows `.exe` *altogether* is not supported by this native desktop architecture.
+- **Linux x64:** Dispatch **only** the `.AppImage` build via GitHub Actions. A standalone AppImage does not require `.deb` installation. Make it executable, then run it.
+- Historical installer releases and tags are preserved. Legacy installer publishing workflows have no active triggers.
+- Neither portable build bundles PyTorch, CUDA/Triton, Anima weights, or a ready-to-use GPU Worker. GPU inference and training must not be advertised as available.
+- Windows requires Microsoft Edge WebView2 Runtime. Both platforms depend on compatible OS libraries; unsigned binaries may be blocked or warned about by the operating system.
 
 ## Windows local build
 
-Prerequisites: Windows x64, Python 3.11 (`py.exe`), Node.js 22, Rust MSVC toolchain, Microsoft C++ Build Tools, WebView2 and the required [Tauri 2 Windows prerequisites](https://v2.tauri.app/start/prerequisites/).
+Prerequisites: Windows x64, Python 3.11 (`py.exe`), Node.js 22, Rust MSVC, Microsoft C++ Build Tools, and Tauri 2 prerequisites.
 
-From the repository root, in PowerShell:
+From repository root:
 
 ```powershell
 .\tools\build-windows.ps1
 ```
 
-The script reuses the existing repository-root `.venv` and `frontend/node_modules` by default. It performs backend, Rust and frontend tests, builds the PyInstaller FastAPI sidecar, generates icons, and creates an unsigned NSIS installer. Tauri invokes the frontend production build once.
+Reuses `.venv` and `frontend/node_modules`, runs Python, Rust and Vue tests, freezes the API sidecar, and builds Tauri with `--no-bundle`. Then constructs and verifies the ZIP and writes `dist/SHA256SUMS.txt`.
 
 ```powershell
 .\tools\build-windows.ps1 -RefreshDependencies
 .\tools\build-windows.ps1 -SkipTests
 ```
 
-Use `-RefreshDependencies` after dependency changes and `-SkipTests` only for exploratory local builds. To avoid PowerShell's `npm.ps1` execution-policy issue, the script calls `npm.cmd`. The produced `.exe` and SHA256 hash are printed locally; Windows installers are **not** uploaded or published automatically. Treat `NotSigned` as expected for the unsigned test preview, not as a signature verification success.
+`-SkipTests` is for local exploration, not verified distribution. The script invokes `npm.cmd` rather than `npm.ps1` to avoid Windows PowerShell execution policy failures. Neither the ZIP nor its checksum is automatically published.
 
-## Linux GitHub Actions build via gh
+Portable data: `portable.flag` next to the main executable selects `LumaCarveData/workspace` and `LumaCarveData/logs` beneath the extraction directory. **Keep the folder writable**. This mode does not migrate previously installed user data; backup/move old data explicitly before changing directories. Never launch an executable directly from inside the ZIP.
 
-Once a commit is pushed and merged into `main`, explicitly request a Linux desktop package:
+## Linux GitHub Actions AppImage
+
+After committing changes to the desired branch, dispatch manually:
 
 ```powershell
 gh workflow run tauri-desktop.yml --repo haotemans/LumaCarve --ref main
 gh run list --repo haotemans/LumaCarve --workflow tauri-desktop.yml --branch main --limit 5
 gh run view <run-id> --repo haotemans/LumaCarve --json headSha,headBranch,event,status,conclusion,url
 gh run watch <run-id> --repo haotemans/LumaCarve --compact --interval 60 --exit-status
-gh run download <run-id> --repo haotemans/LumaCarve --name LumaCarve-Linux-deb-AppImage --dir .\dist\linux
+gh run download <run-id> --repo haotemans/LumaCarve --name LumaCarve-Linux-x64-Portable-AppImage --dir .\dist\linux
 ```
 
-Before reporting a result, verify the repository, branch and `headSha` correspond to the intended commit. The Actions page is authoritative for success, failure, or cancellation. Artifact retention is 7 days. This workflow does not create a GitHub Release.
+AppImage builds are not automatic on PR or push. Verify the run SHA, result, artifact, and checksum before publishing. `APPIMAGE` points at the original outer AppImage path, so the portable workspace is stored next to that file (not in the temporary mount). The directory must be writable. AppImage requires host runtime compatibility (including potential FUSE support). GitHub Actions artifact retention is seven days.
 
-## Agent git / CI rules
+## Release rules
 
-1. Inspect `.github/workflows/` once, and inspect again only after workflow changes.
-2. Run local targeted tests where the current machine supports them. Never claim a Windows local build was executed on a Linux host.
-3. Inspect `git status` and `git diff`, preserve unrelated changes, stage task-related files only, and commit completed changes without prompting again.
-4. Batch related commits before one push. For a new commit, identify only runs tied to that repository, branch and SHA; check relevant required checks.
-5. Avoid broad log downloads. Inspect failed jobs with `gh run view <run-id> --log-failed`; fix a deterministic failure before re-running.
-6. Poll only when monitoring is necessary, at 60-second intervals with compact output. Queued or running CI is not a pass.
-7. Use an existing pull request when one exists, or open a new PR. Merge only when the user explicitly authorized it and GitHub permits it; never force-push or bypass branch protection.
-8. Report the change summary, commit, branch, push status, linked Actions run/status and PR/merge result. Report missing CI runs or environmental blockers truthfully.
-
-Historical release publishing workflows are retained for existing tags and artifacts; they are not the new standard path for desktop packaging.
+1. Distribute **only** the Windows portable ZIP and Linux AppImage, plus SHA-256 checksum manifest. Do not upload `*.deb`, `*.msi`, or NSIS installer `*.exe` assets for new releases.
+2. Require successful build verification on the corresponding OS and inspect the application + sidecar startup before declaring a working portable release.
+3. Keep historical releases untouched. Do not silently replace assets attached to existing release tags.
+4. No GitHub Actions Windows runner. Windows binaries must be compiled on a local Windows machine; a Linux host cannot validate native Windows startup.
+5. Maintain code, Markdown and tests together; inspect status/diff, preserve unrelated changes, commit related work, and inspect exact GitHub CI SHA and status. Queued CI is not a pass.

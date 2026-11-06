@@ -52,3 +52,7 @@ npm run build
 详见 [数据集后端设计](../backend/docs/24-dataset-library.md) 和 [Vue 工作区说明](src/vue/docs/workspaces.md)。
 
 Windows 可使用仓库根目录的 `.\tools\start-dev.ps1` 一起启动 Vue 与 FastAPI，避免 `npm.ps1` 的 ExecutionPolicy 问题；Linux 对应 `./tools/start-dev.sh`。默认共用 `LumaCarveData`。详见 [启动说明](../docs/architecture/04-local-dev-launch.md)。
+
+## 桌面便携版
+
+Windows 仅发布无需安装的 ZIP（解压运行 `LumaCarve.exe`），Linux 仅发布 AppImage；不再发布 NSIS / DEB 安装包。Windows ZIP 必须保留内置 API 副程序和 `portable.flag`。解压目录旁建立 `LumaCarveData/` 保存用户数据。详见 [构建和发布规范](../docs/ci-build.md)。
