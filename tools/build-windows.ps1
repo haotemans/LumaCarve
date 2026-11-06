@@ -1,4 +1,4 @@
-# Build the unsigned Windows NSIS installer locally, without a Windows Actions runner.
+# Build a portable Windows ZIP locally without an installer or Windows Actions runner.
 # Requires Windows, Python 3.11, Node.js 22, Rust/MSVC, and Tauri prerequisites.
 [CmdletBinding()]
 param(
@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
-    throw 'This installer must be built on Windows.'
+    throw 'Windows portable packages must be built on Windows.'
 }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $backend = Join-Path $root 'backend'
@@ -63,23 +63,59 @@ try {
         Assert-Success 'Frontend tests'
     }
     # Tauri invokes 'npm run build' through beforeBuildCommand; do not build twice.
-    & $npm run desktop:build -- --config src-tauri/tauri.windows.conf.json
-    Assert-Success 'Build Windows NSIS installer'
+    & $npm run desktop:build -- --config src-tauri/tauri.windows.conf.json --no-bundle
+    Assert-Success 'Build portable Windows desktop binary'
 }
 finally {
     Pop-Location
 }
 
-$nsisDir = Join-Path $frontend 'src-tauri\target\release\bundle\nsis'
-$installer = Get-ChildItem -Path $nsisDir -Filter '*.exe' -File -ErrorAction Stop |
-    Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-if ($null -eq $installer) {
-    throw 'Tauri finished without producing an NSIS .exe installer.'
+$releaseDir = Join-Path $frontend 'src-tauri\target\release'
+$appExe = Join-Path $releaseDir 'lumacarve-desktop.exe'
+$sidecarExe = Join-Path $frontend 'src-tauri\binaries\lumacarve-api-x86_64-pc-windows-msvc.exe'
+foreach ($file in @($appExe, $sidecarExe)) {
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+        throw "Portable build missing required executable: $file"
+    }
 }
-$signature = Get-AuthenticodeSignature -FilePath $installer.FullName
-if ($signature.Status -ne 'NotSigned') {
-    throw "Expected unsigned preview; installer signature status: $($signature.Status)"
+$dist = Join-Path $root 'dist'
+$staging = Join-Path $dist 'LumaCarve-Windows-x64-Portable'
+$archive = Join-Path $dist 'LumaCarve-Windows-x64-Portable.zip'
+New-Item -ItemType Directory -Path $dist -Force | Out-Null
+if (Test-Path $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+New-Item -ItemType Directory -Path $staging -Force | Out-Null
+Copy-Item -LiteralPath $appExe -Destination (Join-Path $staging 'LumaCarve.exe')
+Copy-Item -LiteralPath $sidecarExe -Destination (Join-Path $staging 'lumacarve-api.exe')
+New-Item -ItemType File -Path (Join-Path $staging 'portable.flag') -Force | Out-Null
+@'
+LumaCarve Windows Portable
+
+Extract the entire ZIP to a writable directory and run LumaCarve.exe.
+Keep lumacarve-api.exe and portable.flag beside LumaCarve.exe.
+User data is stored under LumaCarveData in the same directory.
+Do not run directly from inside the ZIP.
+Requires Windows WebView2 Runtime. Basic desktop UI/API only:
+PyTorch, CUDA, Triton, Anima model weights and GPU workers are NOT included.
+This unsigned build may trigger Windows SmartScreen.
+'@ | Set-Content -Path (Join-Path $staging 'README.txt') -Encoding utf8
+if (Test-Path $archive) { Remove-Item -LiteralPath $archive -Force }
+Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $archive -CompressionLevel Optimal
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+try {
+    $files = @($zip.Entries | Where-Object { $_.Name })
+    foreach ($required in @('LumaCarve.exe', 'lumacarve-api.exe', 'portable.flag', 'README.txt')) {
+        if (-not ($files | Where-Object { $_.FullName -eq $required })) {
+            throw "Portable archive missing $required"
+        }
+    }
 }
-$hash = (Get-FileHash -Path $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-Write-Host "Windows installer: $($installer.FullName)"
+finally {
+    $zip.Dispose()
+}
+$hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+$checksum = Join-Path $dist 'SHA256SUMS.txt'
+"$hash  $(Split-Path $archive -Leaf)" | Set-Content -Path $checksum -Encoding ascii
+Write-Host "Windows portable archive: $archive"
 Write-Host "SHA256: $hash"
+Write-Host 'This ZIP is portable and contains no installer.'
