@@ -60,7 +60,7 @@ jobs:
           test -s "$appimage"
           file "$appimage" | grep -q 'ELF 64-bit'
           chmod +x "$appimage"
-          sha256sum "$appimage" | sed 's|.*/||' > SHA256SUMS.txt
+          (cd "$appimage_dir" && sha256sum -- ./*.AppImage > "$GITHUB_WORKSPACE/SHA256SUMS.txt")
           (cd "$appimage_dir" && sha256sum -c "$GITHUB_WORKSPACE/SHA256SUMS.txt")
           extract_dir=$(mktemp -d)
           (cd "$extract_dir" && "$GITHUB_WORKSPACE/$appimage" --appimage-extract > /dev/null)
@@ -76,7 +76,7 @@ jobs:
             SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 7
-      - name: Publish Linux-only portable prerelease
+      - name: Publish Linux portable prerelease
         if: github.event_name == 'push'
         shell: bash
         env:
@@ -99,6 +99,6 @@ jobs:
           gh release create "$RELEASE_TAG" "${appimages[0]}" SHA256SUMS.txt \
             --repo "$GH_REPO" \
             --target "$GITHUB_SHA" \
-            --title "LumaCarve v0.2.2 Portable Preview 1 (Linux x64 only)" \
+            --title "LumaCarve v0.2.2 Portable Preview 1" \
             --notes-file docs/releases/v0.2.2-portable.md \
             --prerelease

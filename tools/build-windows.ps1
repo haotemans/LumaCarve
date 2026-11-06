@@ -1,4 +1,4 @@
-# Build a portable Windows ZIP locally without an installer or Windows Actions runner.
+# Build a portable Windows ZIP on Windows (local workstation or GitHub Actions runner).
 # Requires Windows, Python 3.11, Node.js 22, Rust/MSVC, and Tauri prerequisites.
 [CmdletBinding()]
 param(
@@ -26,8 +26,8 @@ function Assert-Success([string]$step) {
 
 $needsPythonDeps = $RefreshDependencies
 if (-not (Test-Path $python)) {
-    $launcher = (Get-Command 'py.exe' -ErrorAction Stop).Source
-    & $launcher -3.11 -m venv (Join-Path $root '.venv')
+    $pythonHost = (Get-Command 'python.exe' -ErrorAction Stop).Source
+    & $pythonHost -m venv (Join-Path $root '.venv')
     Assert-Success 'Create Python 3.11 virtual environment'
     $needsPythonDeps = $true
 }

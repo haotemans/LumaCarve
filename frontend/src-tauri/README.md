@@ -9,4 +9,4 @@ Tauri 2 hosts the Vue 3 application and starts/stops its bundled lightweight Fas
 - Windows requires WebView2 Runtime; Linux requires a compatible AppImage runtime environment.
 - The lightweight desktop core **does not contain PyTorch, CUDA, Triton, GPU Worker, or Anima weights**. Training and actual GPU generation are not bundled and remain unverified.
 
-Build Windows locally via `.\tools\build-windows.ps1` from the repo root and Linux AppImage through the manual Actions workflow. See [CI and portable builds](../../docs/ci-build.md), [Tauri architecture](../../docs/architecture/adr/0002-tauri2-sidecar.md).
+Build Windows with GitHub Actions Windows 2022 or locally via `.\tools\build-windows.ps1` from the repo root and Linux AppImage through the manual Actions workflow. See [CI and portable builds](../../docs/ci-build.md), [Tauri architecture](../../docs/architecture/adr/0002-tauri2-sidecar.md).
