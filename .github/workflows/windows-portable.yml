@@ -1,0 +1,128 @@
+# Windows portable x64 builder: PR validation and post-Linux prerelease publication.
+# No NSIS/MSI installer and no signed-binary claims.
+name: Tauri 2 Windows portable ZIP
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-portable.yml'
+      - 'tools/build-windows.ps1'
+      - 'frontend/src-tauri/**'
+      - 'docs/ci-build.md'
+  workflow_run:
+    workflows: ['Tauri 2 Linux portable AppImage']
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-portable-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  windows-portable:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact Linux release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - name: Prepare Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - name: Prepare Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare Rust MSVC
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Build and test Windows portable ZIP
+        shell: pwsh
+        run: .\tools\build-windows.ps1
+      - name: Verify ZIP and extracted desktop startup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zipPath = 'dist/LumaCarve-Windows-x64-Portable.zip'
+          $checksumPath = 'dist/SHA256SUMS.txt'
+          if (-not (Test-Path $zipPath -PathType Leaf)) { throw 'No Windows portable ZIP' }
+          $expected = (Get-Content $checksumPath -Raw).Trim().Split(' ')[0].ToLowerInvariant()
+          $actual = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -ne $actual) { throw 'ZIP SHA256 mismatch' }
+          $extractDir = Join-Path $env:RUNNER_TEMP 'lumacarve-portable-smoke'
+          New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
+          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+          foreach ($required in @('LumaCarve.exe','lumacarve-api.exe','portable.flag','README.txt')) {
+            if (-not (Test-Path (Join-Path $extractDir $required) -PathType Leaf)) {
+              throw "ZIP missing $required"
+            }
+          }
+          # Enforce genuine standalone launches, not just checking archive membership.
+          $exe = Join-Path $extractDir 'LumaCarve.exe'
+          $process = Start-Process -FilePath $exe -WorkingDirectory $extractDir -PassThru
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 45; $attempt++) {
+              Start-Sleep -Seconds 2
+              $process.Refresh()
+              if ($process.HasExited) { throw "Desktop exited early ($($process.ExitCode))" }
+              $workspace = Join-Path $extractDir 'LumaCarveData/workspace'
+              $apiRunning = @(Get-Process -Name 'lumacarve-api' -ErrorAction SilentlyContinue).Count -gt 0
+              if ((Test-Path $workspace -PathType Container) -and $apiRunning) {
+                $ready = $true
+                break
+              }
+            }
+            if (-not $ready) { throw 'Desktop did not start its portable workspace and API sidecar' }
+          }
+          finally {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            Get-Process -Name 'lumacarve-api' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+          Copy-Item $checksumPath 'dist/SHA256SUMS-Windows.txt'
+          Write-Host "Windows ZIP smoke check passed: $actual"
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumaCarve-Windows-x64-Portable
+          path: |
+            dist/LumaCarve-Windows-x64-Portable.zip
+            dist/SHA256SUMS-Windows.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Attach Windows portable ZIP to verified Linux prerelease
+        if: github.event_name == 'workflow_run'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v0.2.2-portable-preview.1
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tagRef = gh api "repos/$env:GH_REPO/git/ref/tags/$env:RELEASE_TAG" --jq '.object.sha'
+          if ($LASTEXITCODE -ne 0 -or $tagRef.Trim() -ne $env:SOURCE_SHA) {
+            throw 'Refusing release upload: release tag does not point to the built source commit'
+          }
+          $existingAssets = gh release view $env:RELEASE_TAG --repo $env:GH_REPO --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw 'Linux prerelease is not available' }
+          if (($existingAssets -contains 'LumaCarve-Windows-x64-Portable.zip') -or
+              ($existingAssets -contains 'SHA256SUMS-Windows.txt')) {
+            throw 'Refusing to overwrite existing Windows release artifacts'
+          }
+          gh release upload $env:RELEASE_TAG 'dist/LumaCarve-Windows-x64-Portable.zip' 'dist/SHA256SUMS-Windows.txt' --repo $env:GH_REPO
+          if ($LASTEXITCODE -ne 0) { throw 'Windows release upload failed' }
