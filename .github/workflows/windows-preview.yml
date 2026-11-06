@@ -1,7 +1,9 @@
 # Archived Windows cloud preview recipe. Windows builds have moved to
 # tools/build-windows.ps1. This workflow has no triggers by design.
 name: Windows unsigned preview (archived)
-on: {}
+# Retained for reference only: manually invokable, but job is disabled.
+on:
+  workflow_dispatch:
 
 jobs:
   archived:

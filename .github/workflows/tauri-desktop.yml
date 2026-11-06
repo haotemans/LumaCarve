@@ -1,12 +1,16 @@
 name: Tauri 2 Linux portable AppImage
 
-# Deliberately dispatch-only: package builds are expensive and are not
-# automatically repeated for every PR, push, or merge.
+# Manually dispatched normally; a one-time release-notes commit triggers
+# the Linux-only portable prerelease pipeline on main.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/releases/v0.2.2-portable.md'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: linux-desktop-${{ github.ref }}
@@ -32,9 +36,12 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev patchelf file
       - name: Freeze FastAPI sidecar and generate icons
         run: |
-          python -m pip install --disable-pip-version-check -e ./backend pyinstaller
+          python -m pip install --disable-pip-version-check -e './backend[dev]' pyinstaller
+          python -m unittest discover -s backend/tests -q
           python tools/generate-desktop-icons.py
           python tools/build-sidecar.py --target x86_64-unknown-linux-gnu
+      - name: Verify portable Rust directory selection
+        run: cargo test --manifest-path frontend/src-tauri/Cargo.toml --release portable_tests
       - name: Install frontend dependencies and run tests
         working-directory: frontend
         run: |
@@ -49,7 +56,17 @@ jobs:
           set -euo pipefail
           appimage_dir=frontend/src-tauri/target/release/bundle/appimage
           test "$(find "$appimage_dir" -maxdepth 1 -name '*.AppImage' -type f | wc -l)" -eq 1
-          sha256sum "$appimage_dir"/*.AppImage | sed 's|.*/||' > SHA256SUMS.txt
+          appimage=$(find "$appimage_dir" -maxdepth 1 -name '*.AppImage' -type f -print -quit)
+          test -s "$appimage"
+          file "$appimage" | grep -q 'ELF 64-bit'
+          chmod +x "$appimage"
+          sha256sum "$appimage" | sed 's|.*/||' > SHA256SUMS.txt
+          (cd "$appimage_dir" && sha256sum -c "$GITHUB_WORKSPACE/SHA256SUMS.txt")
+          extract_dir=$(mktemp -d)
+          (cd "$extract_dir" && "$GITHUB_WORKSPACE/$appimage" --appimage-extract > /dev/null)
+          test -d "$extract_dir/squashfs-root"
+          find "$extract_dir/squashfs-root" -type f -name 'lumacarve-api*' | grep -q .
+          rm -rf "$extract_dir"
       - name: Upload Linux portable package and checksums
         uses: actions/upload-artifact@v4
         with:
@@ -59,3 +76,29 @@ jobs:
             SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 7
+      - name: Publish Linux-only portable prerelease
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v0.2.2-portable-preview.1
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "::error::Release $RELEASE_TAG already exists; refusing to replace immutable assets"
+            exit 1
+          fi
+          if git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $RELEASE_TAG exists; refusing to move it"
+            exit 1
+          fi
+          appimage_dir=frontend/src-tauri/target/release/bundle/appimage
+          mapfile -d '' appimages < <(find "$appimage_dir" -maxdepth 1 -type f -name '*.AppImage' -print0)
+          test "${#appimages[@]}" -eq 1
+          gh release create "$RELEASE_TAG" "${appimages[0]}" SHA256SUMS.txt \
+            --repo "$GH_REPO" \
+            --target "$GITHUB_SHA" \
+            --title "LumaCarve v0.2.2 Portable Preview 1 (Linux x64 only)" \
+            --notes-file docs/releases/v0.2.2-portable.md \
+            --prerelease
