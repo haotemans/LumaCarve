@@ -337,3 +337,10 @@ source = ["backend/lumacarve_server/component_monitor.py"]
 doc = "docs/architecture/10-gpu-executor-component-monitoring.md"
 tests = ["backend/tests/test_component_monitor.py"]
 verification = "backend-tests"
+
+[[module]]
+id = "tools.release_status"
+source = ["tools/check_release_status.py"]
+doc = "docs/release-status.md"
+tests = ["tools/tests/test_release_status.py"]
+verification = "frontend-build"

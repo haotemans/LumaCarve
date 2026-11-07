@@ -2,7 +2,7 @@
 
 **A modular, local-first studio for image generation, image editing and LoRA training.**
 
-> **Project status:** Vue 3 graphical WebUI and FastAPI/SQLite local API are implemented; Anima text-to-image adapter is connected in code but actual GPU inference is not yet benchmarked. LoRA training and additional model adapters are not implemented.
+> **Project status (2026-11-07):** Vue 3 / Tauri 2, FastAPI/SQLite and Windows x64 portable API startup have CI verification. Anima model adapter code exists but real GPU inference is unverified. Public portable builds **do not bundle a GPU Worker or model weights**; LoRA training and Qwen editing remain unavailable. See [verified releases and capability status](docs/release-status.md).
 
 LumaCarve（琢影）是一款面向本地 GPU 的模块化 LoRA 训练与图像创作、编辑工具，强调可控的训练流程、透明的资源占用、灵活的模型管理，以及适用于不同显存配置的优化策略。
 
@@ -14,7 +14,7 @@ LumaCarve is a **modular monorepo**, not a collection of services. Source files,
 - [Technology stack and decisions](docs/architecture/02-tech-stack.md) · [User data and cache layout](docs/architecture/03-data-layout.md)
 - [ADR-0001: Modular monorepo](docs/architecture/ADR-0001-modular-monorepo.md)
 - [Module → Markdown → Test manifest](project-layout.toml) · [Image Studio feature](frontend/src/features/image-studio/README.md)
-- [Portable-only Windows ZIP / Linux AppImage distribution](docs/ci-build.md)
+- [Windows/Linux published artifacts and capability status](docs/release-status.md) · [Portable build policy](docs/ci-build.md)
 - [Backend module guide](backend/README.md)
 
 Vue 3 graphical screens live in `frontend/src/vue/`; shared workflow JSON and local HTTP API definitions remain in `frontend/src/features/image-studio/`. React/React Flow and legacy demo pages were removed. See [Vue UI](frontend/README.md) and [ADR 0001](docs/architecture/adr/0001-vue3-frontend.md).
@@ -153,5 +153,7 @@ Completed in the initial backend phase: local FastAPI bootstrap, Graph validatio
 - [ ] 在 8 GB / 16 GB / 24 GB 设备上分别测试显存、性能与效果
 
 ## Notes
+
+Windows 便携版目前为 v0.2.3，Linux AppImage 仍为 v0.2.2。请以 [发行与功能状态](docs/release-status.md) 为准，API 就绪不代表 GPU 可用。
 
 LumaCarve 当前仍处于设计阶段。上述功能与性能目标不构成已完成实现或硬件兼容承诺。用户需遵守各基础模型、数据集及第三方依赖的许可要求。
