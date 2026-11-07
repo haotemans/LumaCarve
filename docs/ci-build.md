@@ -62,3 +62,11 @@ The Windows CI is initiated only after the Linux release workflow succeeds on a 
 Workflow: `.github/workflows/windows-portable.yml`, runner: `windows-2022`, toolchains: Python 3.11, Node.js 22, Rust MSVC. A successful, main-branch Linux portable release run triggers the Windows build once via `workflow_run`. The Windows job checks out the producer's `head_sha`, runs Python/Rust/JavaScript checks, packages the ZIP without installers, verifies its checksum and the extracted app + API sidecar. Only the release tag that points to that **same commit SHA** may receive the new Windows artifacts; existing file names are never overwritten. You can manually dispatch the Windows workflow for build-only diagnostic artifacts without publishing.
 
 Windows smoke tests require the app to stay alive, create an adjacent workspace and start the bundled API sidecar. This is an automated runner smoke test, not proof of successful GPU generation or full user acceptance testing.
+
+## Portable diagnostic regression gates
+
+Windows CI must now verify the real frozen `lumacarve-api.exe` independently using an absolute `LUMACARVE_DATA_DIR`, a fresh loopback port, and a valid session token. An authenticated `/api/v1/health` call must return `status: ok`; a request without a token must return 403. The existing extracted GUI + sidecar process smoke test remains. Merely finding an executable or process name is **not** enough to declare API integration working. Directly opening the sidecar is unsupported and should provide user guidance, not an uncaught traceback. The UI differentiates a connected lightweight API from an unconfigured GPU inference worker.
+
+## Windows v0.2.3 API startup hotfix
+
+A one-time `docs/releases/v0.2.3-portable-hotfix.md` change on `main` triggers the Windows native build-and-test workflow. Only after the packaged API's authenticated HTTP health check and extracted GUI startup succeed does the runner create a new immutable prerelease `v0.2.3-portable-preview.1`. Existing `v0.2.2` release assets are preserved. This fixes diagnostics and startup verification, **not** GPU training/inference packaging.

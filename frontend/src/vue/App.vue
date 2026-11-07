@@ -11,6 +11,7 @@ const route = useRoute();
 const router = useRouter();
 const studio = useStudioStore();
 const menuOpen = ref(false);
+const desktopStartupError = ref('');
 const mainNav = [
   { path: '/studio', label: '图像生成', en: 'GENERATE', icon: WandSparkles },
   { path: '/training', label: 'LoRA 训练', en: 'TRAINING', icon: Layers3 },
@@ -25,12 +26,16 @@ const manageNav = [
 const title = computed(() => String(route.meta.title || '图像工作室'));
 const section = computed(() => String(route.meta.section || 'STUDIO'));
 const runtimeStatus = computed(() =>
-  studio.runtimeError ? '后端未连接' :
-  studio.runtime?.engine === 'anima' ? 'Anima 资源就绪' :
-  studio.runtime ? '待配置后端' : '未采集运行状态'
+  desktopStartupError.value || studio.runtimeError ? '本地 API 未连接' :
+  studio.runtime?.engine === 'anima' ? 'Anima 推理就绪' :
+  studio.runtime?.configuredEngine === 'disabled' ? 'API 已连接 · GPU 未启用' :
+  studio.runtime ? 'API 已连接 · 模型未就绪' : '正在读取本地 API'
 );
 watch(() => route.path, () => { menuOpen.value = false; });
-onMounted(() => { if (!studio.runtime) void studio.refreshRuntime(); });
+onMounted(() => {
+  desktopStartupError.value = document.body.dataset.desktopError || '';
+  if (!studio.runtime && !desktopStartupError.value) void studio.refreshRuntime();
+});
 function go(path: string) { void router.push(path); menuOpen.value = false; }
 </script>
 
@@ -65,9 +70,9 @@ function go(path: string) { void router.push(path); menuOpen.value = false; }
       <div class="sidebar-runtime">
         <div class="runtime-symbol"><Cpu :size="19"/></div>
         <div class="runtime-copy"><strong>LOCAL ENGINE</strong><span>{{runtimeStatus}}</span></div>
-        <span class="engine-dot" :class="{ready:studio.runtime?.engine==='anima'}"/>
+        <span class="engine-dot" :class="{ready:studio.runtime?.engine==='anima',connected:!!studio.runtime && studio.runtime.configuredEngine==='disabled'}"/>
       </div>
-      <div class="sidebar-foot"><span>VUE 3 · LOCAL FIRST</span><span>v0.2</span></div>
+      <div class="sidebar-foot"><span>VUE 3 · LOCAL FIRST</span><span>v0.2.3</span></div>
     </aside>
 
     <div class="app-content">
@@ -77,12 +82,16 @@ function go(path: string) { void router.push(path); menuOpen.value = false; }
           <div class="breadcrumbs"><span>LUMACARVE</span><ChevronRight :size="14"/><span>{{section}}</span></div>
         </div>
         <div class="topbar-right">
-          <span class="api-chip"><span class="status-pulse" :class="{ok:studio.runtime?.engine==='anima'}"/>{{runtimeStatus}}</span>
+          <span class="api-chip"><span class="status-pulse" :class="{ok:studio.runtime?.engine==='anima',connected:!!studio.runtime && studio.runtime.configuredEngine==='disabled'}"/>{{runtimeStatus}}</span>
           <span class="gpu-chip"><Zap :size="14"/>GPU <strong>—</strong></span>
           <button class="icon-button help-button" aria-label="查看运行环境" title="运行环境" @click="go('/system')"><CircleHelp :size="19"/></button>
         </div>
       </header>
 
+      <div v-if="desktopStartupError" class="desktop-startup-error" role="alert">
+        <strong>本地 API 启动失败</strong>
+        <span>{{ desktopStartupError }}。请检查便携目录下 LumaCarveData/logs/api.log。不要直接运行 lumacarve-api.exe。</span>
+      </div>
       <main class="workspace-content">
         <div class="page-header">
           <div class="page-heading">

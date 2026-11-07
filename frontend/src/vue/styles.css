@@ -516,3 +516,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 .monitor-executor-state{display:flex;flex-wrap:wrap;align-items:center;gap:6px 15px;margin:-6px 0 16px;padding:11px 13px;background:#f3f4ff;border:1px solid #e4e5fa;border-radius:10px;font-size:10px;color:#655ba7;font-variant-numeric:tabular-nums}
 .component-phase-item span{overflow-wrap:anywhere}
+
+/* Portable startup diagnostics: show actual API failure, not an absent GPU worker. */
+.desktop-startup-error{margin:14px 32px 0;padding:13px 16px;border-radius:10px;border:1px solid #eeb5bf;background:#fff3f5;color:#8f2f44;display:flex;flex-wrap:wrap;gap:8px;font-size:12px;line-height:1.55}
+.desktop-startup-error strong{flex-shrink:0}
+.engine-dot.connected,.status-pulse.connected{background:#96a8ef;box-shadow:0 0 0 3px #96a8ef28}
+@media(max-width:780px){.desktop-startup-error{margin:12px 16px 0}}
