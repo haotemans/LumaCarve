@@ -8,6 +8,9 @@ on:
     paths:
       - '.github/workflows/windows-portable.yml'
       - 'tools/build-windows.ps1'
+      - 'backend/lumacarve_server/desktop_entry.py'
+      - 'backend/tests/test_desktop_auth.py'
+      - 'frontend/src/vue/**'
       - 'frontend/src-tauri/**'
       - 'docs/ci-build.md'
   workflow_run:
@@ -95,6 +98,60 @@ jobs:
           }
           Copy-Item $checksumPath 'dist/SHA256SUMS-Windows.txt'
           Write-Host "Windows ZIP smoke check passed: $actual"
+      - name: Test actual packaged API HTTP health and authorization
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $extractDir = Join-Path $env:RUNNER_TEMP 'lumacarve-portable-smoke'
+          $sidecar = Join-Path $extractDir 'lumacarve-api.exe'
+          if (-not (Test-Path -LiteralPath $sidecar)) { throw 'Missing packaged sidecar' }
+          $dataDir = Join-Path $extractDir 'LumaCarveData\http-check'
+          $token = ('0123456789abcdef' * 4)
+          $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+          $listener.Start()
+          $port = $listener.LocalEndpoint.Port
+          $listener.Stop()
+          $env:LUMACARVE_DATA_DIR = [System.IO.Path]::GetFullPath($dataDir)
+          $env:LUMACARVE_PORT = [string]$port
+          $env:LUMACARVE_HOST = '127.0.0.1'
+          $env:LUMACARVE_DESKTOP_TOKEN = $token
+          $env:LUMACARVE_ALLOWED_ORIGINS = 'http://tauri.localhost,tauri://localhost'
+          $env:LUMACARVE_INFERENCE_BACKEND = 'disabled'
+          $apiProcess = $null
+          try {
+            $apiProcess = Start-Process -FilePath $sidecar -WorkingDirectory $extractDir -PassThru
+          }
+          finally {
+            Remove-Item Env:LUMACARVE_DATA_DIR, Env:LUMACARVE_PORT, Env:LUMACARVE_HOST, Env:LUMACARVE_DESKTOP_TOKEN, Env:LUMACARVE_ALLOWED_ORIGINS, Env:LUMACARVE_INFERENCE_BACKEND -ErrorAction SilentlyContinue
+          }
+          try {
+            $health = "http://127.0.0.1:$port/api/v1/health"
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 60; $attempt++) {
+              Start-Sleep -Seconds 1
+              $apiProcess.Refresh()
+              if ($apiProcess.HasExited) {
+                $logfile = Join-Path $extractDir 'LumaCarveData/logs/api.log'
+                if (Test-Path $logfile) { Get-Content $logfile -Tail 60 }
+                throw "Packaged API exited before HTTP readiness ($($apiProcess.ExitCode))"
+              }
+              try {
+                $response = Invoke-RestMethod -Uri $health -Headers @{ 'X-LumaCarve-Token' = $token } -TimeoutSec 2
+                if ($response.status -eq 'ok') { $ready = $true; break }
+              } catch { }
+            }
+            if (-not $ready) { throw 'Packaged API failed authenticated HTTP health check' }
+            try {
+              Invoke-WebRequest -Uri $health -TimeoutSec 5 -ErrorAction Stop | Out-Null
+              throw 'Sidecar accepted unauthenticated HTTP request'
+            }
+            catch {
+              if ($_.Exception.Response.StatusCode -ne [System.Net.HttpStatusCode]::Forbidden) { throw }
+            }
+          }
+          finally {
+            if ($apiProcess) { Stop-Process -Id $apiProcess.Id -Force -ErrorAction SilentlyContinue }
+          }
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4
         with:
