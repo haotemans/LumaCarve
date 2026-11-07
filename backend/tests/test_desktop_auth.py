@@ -4,6 +4,9 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from lumacarve_server.desktop_entry import launch_configuration_error, main as desktop_main
 
 from fastapi.testclient import TestClient
 from lumacarve_server.app import create_app
@@ -58,6 +61,31 @@ class DesktopAuthTests(unittest.TestCase):
     def test_reject_weak_desktop_token(self):
         with self.assertRaises(ValueError):
             Settings(data_dir=Path(self.tmp.name), desktop_token="short")
+
+    def test_direct_sidecar_invocation_is_helpful_not_uncaught(self):
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("lumacarve_server.desktop_entry.report_launch_configuration_error") as error:
+                self.assertEqual(desktop_main(), 2)
+                error.assert_called_once()
+                self.assertIn("LumaCarve.exe", error.call_args.args[0])
+
+    def test_sidecar_requires_tauri_launch_configuration(self):
+        configured = {
+            "LUMACARVE_DATA_DIR": str(Path(self.tmp.name).resolve()),
+            "LUMACARVE_DESKTOP_TOKEN": "0123456789abcdef" * 4,
+            "LUMACARVE_HOST": "127.0.0.1",
+            "LUMACARVE_PORT": "45231",
+        }
+        self.assertIsNone(launch_configuration_error(configured))
+        for key, bad in [
+            ("LUMACARVE_DATA_DIR", "."),
+            ("LUMACARVE_DESKTOP_TOKEN", "too-short"),
+            ("LUMACARVE_HOST", "0.0.0.0"),
+            ("LUMACARVE_PORT", "0"),
+        ]:
+            with self.subTest(key=key):
+                malformed = dict(configured, **{key: bad})
+                self.assertIsNotNone(launch_configuration_error(malformed))
 
 
 if __name__ == "__main__":
