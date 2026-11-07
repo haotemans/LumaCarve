@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { Activity, ArrowUpRight, ChevronDown, Cpu, Database, Layers3, Play, Plus, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, UploadCloud } from 'lucide-vue-next';
+import { Activity, ArrowUpRight, ChevronDown, Database, Play, Settings2, ShieldAlert, SlidersHorizontal, UploadCloud } from 'lucide-vue-next';
 import { datasetImageUrl, listDatasetItems, listDatasets } from '../api';
 import type { DatasetItem, DatasetSummary } from '../api';
 
@@ -8,6 +8,7 @@ const datasets = ref<DatasetSummary[]>([]);
 const currentDataset = ref('');
 const sampleImages = ref<DatasetItem[]>([]);
 const datasetError = ref('');
+const showAdvanced = ref(false);
 async function refreshSamples() {
   try {
     sampleImages.value = currentDataset.value ? (await listDatasetItems(currentDataset.value, 8)).items : [];
@@ -33,21 +34,22 @@ const optimizer = ref('adamw8bit');
 const modelId = ref('anima-base-1');
 const currentPreset = computed(() => rank.value+' Rank · '+epochs.value+' Epoch');
 const steps = [
-  { n:'01', name:'训练数据', desc:'导入图片与 Caption', icon:UploadCloud },
-  { n:'02', name:'参数设置', desc:'调整优化器与精度', icon:SlidersHorizontal },
-  { n:'03', name:'开始训练', desc:'等待训练 Worker 接入', icon:Play },
+  { n:'01', name:'数据集', icon:UploadCloud },
+  { n:'02', name:'参数', icon:SlidersHorizontal },
+  { n:'03', name:'训练', icon:Play },
 ];
 </script>
 <template>
   <div class="training-view">
-    <div class="training-banner">
-      <div class="training-banner-copy"><span class="eyebrow small">LORA LABORATORY</span><h2>训练，从清晰的工作流开始。</h2><p>训练后端尚未接入。本页面保留可编辑参数，不会启动虚假的 GPU 任务。</p>
-        <div class="training-banner-chips"><span>BF16 优先</span><span>多优化器预设</span><span>Epoch 管理</span></div>
-      </div>
-      <div class="training-banner-art" aria-hidden="true"><div class="training-ring ring-outer"/><div class="training-ring ring-inner"/><Layers3 :size="42" :stroke-width="1.1"/></div>
+    <div class="training-compact-header">
+      <div><strong>LoRA 训练</strong><span>参数草稿 · Worker 未接入</span></div>
+      <RouterLink to="/datasets" class="subtle-button"><Database :size="15"/> 数据集</RouterLink>
     </div>
-    <div class="training-step-grid">
-      <div v-for="step in steps" :key="step.n" class="training-step panel"><span>{{step.n}}</span><component :is="step.icon" :size="19"/><strong>{{step.name}}</strong><small>{{step.desc}}</small></div>
+    <div class="training-progress" aria-label="训练流程；执行尚未开放">
+      <div v-for="step in steps" :key="step.n" class="training-progress-step">
+        <component :is="step.icon" :size="15"/>
+        <span>{{step.name}}</span>
+      </div>
     </div>
     <div class="training-layout">
       <section class="panel train-config">
@@ -67,8 +69,14 @@ const steps = [
           <div v-else class="training-dataset-empty"><Database :size="15"/>暂无保存的训练图片</div>
         </div>
         <div class="train-config-grid">
-          <label class="train-input"><span>LoRA Rank</span><input v-model.number="rank" type="number" min="1" max="512"/></label>
           <label class="train-input"><span>Epoch</span><input v-model.number="epochs" type="number" min="1" max="500"/></label>
+          <label class="train-input"><span>LoRA Rank</span><input v-model.number="rank" type="number" min="1" max="512"/></label>
+        </div>
+        <button type="button" class="disclosure-button train-advanced-toggle" :aria-expanded="showAdvanced" aria-controls="train-advanced" @click="showAdvanced=!showAdvanced">
+          <span><Settings2 :size="15"/> 高级参数 <small>{{precision.toUpperCase()}} · {{optimizer}}</small></span>
+          <ChevronDown :size="15" :class="{turned:showAdvanced}"/>
+        </button>
+        <div v-if="showAdvanced" id="train-advanced" class="train-config-grid">
           <label class="train-input"><span>学习率</span><input v-model="lr" type="text" inputmode="decimal"/></label>
           <label class="train-input"><span>训练精度</span><select v-model="precision"><option value="bf16">BF16</option><option value="fp16">FP16</option></select></label>
           <label class="train-input train-wide"><span>优化器</span><select v-model="optimizer"><option value="adamw8bit">AdamW 8-bit</option><option value="adamw">AdamW</option><option value="muon">Muon</option><option value="came">CAME</option><option value="magicauto">MagicAuto</option></select></label>
@@ -77,10 +85,13 @@ const steps = [
       </section>
       <section class="panel train-monitor">
         <div class="panel-heading"><div class="panel-title"><Activity :size="18"/><h2>训练监控</h2></div><span class="mini-tag">NO ACTIVE RUN</span></div>
-        <div class="monitor-placeholder"><div class="monitor-axes"><div class="axes-lines"/><div class="monitor-center"><Activity :size="31" :stroke-width="1.4"/><strong>等待真实训练数据</strong><small>Loss、LR 与梯度曲线将在执行后显示</small></div></div></div>
-        <div class="monitor-metrics"><div><span>LOSS</span><strong>—</strong></div><div><span>LEARNING RATE</span><strong>—</strong></div><div><span>GRAD NORM</span><strong>—</strong></div></div>
+        <div class="training-monitor-empty" role="status">
+          <Activity :size="25" :stroke-width="1.5"/>
+          <strong>暂无训练数据</strong>
+          <span>Worker 接入后显示 Loss、LR 和 Grad</span>
+        </div>
       </section>
     </div>
-    <div class="training-bottom-note"><ShieldAlert :size="16"/><span>这些参数仅保留于当前页面，不会提交训练任务。</span><RouterLink to="/datasets">查看数据集 <ArrowUpRight :size="15"/></RouterLink></div>
+    <div class="training-bottom-note"><ShieldAlert :size="16"/><span>仅参数草稿，暂不执行训练。</span><RouterLink to="/datasets">管理数据集 <ArrowUpRight :size="15"/></RouterLink></div>
   </div>
 </template>
