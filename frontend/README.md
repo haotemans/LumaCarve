@@ -1,6 +1,6 @@
 # LumaCarve · Vue 3 图形化工作台
 
-LumaCarve WebUI 与未来的 Windows/Linux Tauri 2 共用一个前端：**Vue 3 Composition API + TypeScript + Vite + Pinia + Vue Router**。不再依赖 React/React Flow。
+LumaCarve WebUI 与已集成的 Windows/Linux Tauri 2 桌面端共用一个前端：**Vue 3 Composition API + TypeScript + Vite + Pinia + Vue Router**。不再依赖 React/React Flow。
 
 ## 启动
 
@@ -56,3 +56,5 @@ Windows 可使用仓库根目录的 `.\tools\start-dev.ps1` 一起启动 Vue 与
 ## 桌面便携版
 
 Windows 仅发布无需安装的 ZIP（解压运行 `LumaCarve.exe`），Linux 仅发布 AppImage；不再发布 NSIS / DEB 安装包。Windows ZIP 必须保留内置 API 副程序和 `portable.flag`。解压目录旁建立 `LumaCarveData/` 保存用户数据。详见 [构建和发布规范](../docs/ci-build.md)。
+
+**当前发行状态：** Windows 便携预览版 v0.2.3；Linux AppImage v0.2.2。便携包仅包含轻量本地 API，不包括 GPU Worker、Anima 权重或 LoRA 训练。请参阅 [发行与功能状态](../docs/release-status.md)。

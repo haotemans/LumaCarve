@@ -14,3 +14,7 @@ Build Windows with GitHub Actions Windows 2022 or locally via `.\tools\build-win
 ## Diagnostics
 
 Start `LumaCarve.exe`, not `lumacarve-api.exe`. The latter is an internal process requiring a per-launch token and absolute data directory. A direct launch displays a helpful message and exits without an uncaught traceback. A connected API is not equivalent to a configured Anima GPU runtime: the sidebar shows separate states. Logs are written to `LumaCarveData/logs/api.log` in portable mode.
+
+## Current public releases
+
+Windows x64: v0.2.3 portable ZIP. Linux x64: v0.2.2 AppImage. The source tree is v0.2.3, which does **not** upgrade the published Linux artifact. See the [platform release and capability matrix](../../docs/release-status.md). Update source, module docs, tests, and the release status manifest together.

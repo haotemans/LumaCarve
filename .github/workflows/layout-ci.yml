@@ -32,4 +32,5 @@ jobs:
         with:
           python-version: '3.11'
       - run: python tools/check_layout.py
+      - run: python tools/check_release_status.py
       - run: python -m unittest discover -s tools/tests -v

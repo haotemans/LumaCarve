@@ -1,4 +1,6 @@
-# LumaCarve · Vue / FastAPI 本轮完善（2026-11-03）
+# LumaCarve · Vue / FastAPI 开发记录（2026-11-03 历史快照）
+
+> **历史记录，非最新仓库状态。** 本文的环境故障与未提交说明仅适用于当时离线交付，不代表目前 GitHub main。最新 CI、Windows/Linux 发行和 GPU 限制以 [发行状态](docs/release-status.md) 为准。
 
 ## 已实现
 

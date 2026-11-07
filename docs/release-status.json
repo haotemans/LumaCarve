@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-11-07",
+  "source_version": "0.2.3",
+  "releases": [
+    {
+      "platform": "Windows x64",
+      "version": "0.2.3",
+      "tag": "v0.2.3-portable-preview.1",
+      "asset": "LumaCarve-Windows-x64-Portable.zip",
+      "checksum": "SHA256SUMS-Windows.txt",
+      "source_sha": "22da0df5a798f33aeff1e5d15e9c2f40200d7cc9"
+    },
+    {
+      "platform": "Linux x64",
+      "version": "0.2.2",
+      "tag": "v0.2.2-portable-preview.1",
+      "asset": "LumaCarve_0.2.2_amd64.AppImage",
+      "checksum": "SHA256SUMS.txt",
+      "source_sha": "32ec75149caae3022457677ac2b64c77c0b173ef"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "desktop_shell",
+      "name": "Tauri 2 / Vue 3 窗口",
+      "state": "CI 已验证",
+      "detail": "Windows 启动测试通过，仍需真实设备验收。",
+      "evidence": [
+        "frontend/src-tauri/src/main.rs",
+        ".github/workflows/windows-portable.yml"
+      ]
+    },
+    {
+      "id": "local_api",
+      "name": "FastAPI / SQLite 本地服务",
+      "state": "CI 已验证",
+      "detail": "Windows 打包 Sidecar 的鉴权健康检查通过。",
+      "evidence": [
+        "backend/lumacarve_server/app.py",
+        "backend/tests/test_desktop_auth.py"
+      ]
+    },
+    {
+      "id": "anima_adapter",
+      "name": "Anima 生成适配器",
+      "state": "代码已接入，GPU 未验证",
+      "detail": "仅有代码和模拟测试，未验证实际 GPU 出图。",
+      "evidence": [
+        "backend/lumacarve_server/adapters/anima.py",
+        "backend/tests/test_anima.py"
+      ]
+    },
+    {
+      "id": "portable_gpu",
+      "name": "便携版 GPU 推理运行时",
+      "state": "未打包",
+      "detail": "预览包没有 PyTorch / CUDA / GPU Worker / 模型权重。",
+      "evidence": [
+        "frontend/src-tauri/src/main.rs"
+      ]
+    },
+    {
+      "id": "lora_training",
+      "name": "LoRA 训练 Worker",
+      "state": "未实现",
+      "detail": "目前仅有配置/UI 草稿，不能实际训练。",
+      "evidence": [
+        "frontend/src/vue/views/TrainingView.vue"
+      ]
+    },
+    {
+      "id": "qwen_editing",
+      "name": "Qwen 图像编辑",
+      "state": "未实现",
+      "detail": "没有可执行的模型编辑适配器。",
+      "evidence": [
+        "README.md"
+      ]
+    }
+  ]
+}

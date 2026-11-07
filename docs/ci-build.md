@@ -41,7 +41,7 @@ gh run watch <run-id> --repo haotemans/LumaCarve --compact --interval 60 --exit-
 gh run download <run-id> --repo haotemans/LumaCarve --name LumaCarve-Linux-x64-Portable-AppImage --dir .\dist\linux
 ```
 
-AppImage builds are not automatic on PR or push. Verify the run SHA, result, artifact, and checksum before publishing. `APPIMAGE` points at the original outer AppImage path, so the portable workspace is stored next to that file (not in the temporary mount). The directory must be writable. AppImage requires host runtime compatibility (including potential FUSE support). GitHub Actions artifact retention is seven days.
+AppImage builds are normally dispatched manually; the v0.2.2 release-notes path also initiated a one-time main-branch publication build. Verify the run SHA, result, artifact, and checksum before publishing. `APPIMAGE` points at the original outer AppImage path, so the portable workspace is stored next to that file (not in the temporary mount). The directory must be writable. AppImage requires host runtime compatibility (including potential FUSE support). GitHub Actions artifact retention is seven days.
 
 ## Release rules
 
@@ -70,3 +70,7 @@ Windows CI must now verify the real frozen `lumacarve-api.exe` independently usi
 ## Windows v0.2.3 API startup hotfix
 
 A one-time `docs/releases/v0.2.3-portable-hotfix.md` change on `main` triggers the Windows native build-and-test workflow. Only after the packaged API's authenticated HTTP health check and extracted GUI startup succeed does the runner create a new immutable prerelease `v0.2.3-portable-preview.1`. Existing `v0.2.2` release assets are preserved. This fixes diagnostics and startup verification, **not** GPU training/inference packaging.
+
+## Release/source documentation synchronization
+
+[Current release status](release-status.md) distinguishes source version from each platform's **actually published** artifact. Metadata lives in [release-status.json](release-status.json). Source version bumps must update Vue package.json, Rust Cargo.toml, Tauri tauri.conf.json and the JSON source version together. Run `python tools/check_release_status.py` and `python -m unittest discover -s tools/tests -v`; these execute in layout CI. A source version bump is not proof of a published release. Update a platform entry only after validating the GitHub Release asset and source SHA. The offline checker guarantees internal consistency, **not** remote asset presence or GPU functionality.

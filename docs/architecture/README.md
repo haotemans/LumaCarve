@@ -2,7 +2,7 @@
 
 项目目标：Windows 本地优先的图像生成、图像编辑与 LoRA 训练工作台；单 Python 虚拟环境、Graph 驱动执行、轻量参数 UI、按需模型加载、中国大陆与国际下载源。
 
-> 本目录区分**已实现**与**目标架构**。切勿将目标目录、模型运行时、显存优化当成已有功能。
+> 本目录区分**已实现**与**目标架构**。切勿将目标目录、模型运行时、显存优化当成已有功能。最新平台发行与能力状态以 [发布状态清单](../release-status.md) 为准。
 
 阅读顺序：
 
@@ -11,6 +11,7 @@
 3. [03-data-layout.md](03-data-layout.md)：模型、数据集、缓存、下载与任务输出的数据布局。
 4. [ADR-0001-modular-monorepo.md](ADR-0001-modular-monorepo.md)：单仓库、单运行环境、独立模块的决策记录。
 5. [ADR-0002-rust-scheduler-comfyui-reference.md](ADR-0002-rust-scheduler-comfyui-reference.md)：ComfyUI 架构参考，Rust 调度 / Python 模型计算的边界。
+6. [ADR 0002：Tauri 2 Sidecar](adr/0002-tauri2-sidecar.md)：便携打包、安全边界与 GPU 运行时限制。
 
 具体源文件的说明优先放在相应模块旁边，或沿用 `backend/docs/` 的已有说明。Vue 迁移决策见 [ADR 0001](adr/0001-vue3-frontend.md)。模块索引由根目录 `project-layout.toml` 记录，`tools/check_layout.py` 在 CI 中检查引用关系。
 
