@@ -66,3 +66,7 @@ Windows smoke tests require the app to stay alive, create an adjacent workspace 
 ## Portable diagnostic regression gates
 
 Windows CI must now verify the real frozen `lumacarve-api.exe` independently using an absolute `LUMACARVE_DATA_DIR`, a fresh loopback port, and a valid session token. An authenticated `/api/v1/health` call must return `status: ok`; a request without a token must return 403. The existing extracted GUI + sidecar process smoke test remains. Merely finding an executable or process name is **not** enough to declare API integration working. Directly opening the sidecar is unsupported and should provide user guidance, not an uncaught traceback. The UI differentiates a connected lightweight API from an unconfigured GPU inference worker.
+
+## Windows v0.2.3 API startup hotfix
+
+A one-time `docs/releases/v0.2.3-portable-hotfix.md` change on `main` triggers the Windows native build-and-test workflow. Only after the packaged API's authenticated HTTP health check and extracted GUI startup succeed does the runner create a new immutable prerelease `v0.2.3-portable-preview.1`. Existing `v0.2.2` release assets are preserved. This fixes diagnostics and startup verification, **not** GPU training/inference packaging.

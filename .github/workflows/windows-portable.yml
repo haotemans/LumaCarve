@@ -4,6 +4,10 @@ name: Tauri 2 Windows portable ZIP
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/releases/v0.2.3-portable-hotfix.md'
   pull_request:
     paths:
       - '.github/workflows/windows-portable.yml'
@@ -161,6 +165,21 @@ jobs:
             dist/SHA256SUMS-Windows.txt
           if-no-files-found: error
           retention-days: 7
+      - name: Publish new Windows portable hotfix prerelease
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v0.2.3-portable-preview.1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release view $env:RELEASE_TAG --repo $env:GH_REPO *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'Refusing to replace an existing release' }
+          gh api "repos/$env:GH_REPO/git/ref/tags/$env:RELEASE_TAG" *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'Refusing to move existing release tag' }
+          gh release create $env:RELEASE_TAG 'dist/LumaCarve-Windows-x64-Portable.zip' 'dist/SHA256SUMS-Windows.txt' --repo $env:GH_REPO --target $env:GITHUB_SHA --title "LumaCarve v0.2.3 Windows Portable Preview (API startup hotfix)" --notes-file docs/releases/v0.2.3-portable-hotfix.md --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to create verified Windows portable prerelease' }
       - name: Attach Windows portable ZIP to verified Linux prerelease
         if: github.event_name == 'workflow_run'
         shell: pwsh
