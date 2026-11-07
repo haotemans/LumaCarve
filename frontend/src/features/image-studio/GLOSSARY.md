@@ -14,3 +14,7 @@
 | 持久化训练数据集 | 后端 `datasets.sqlite3` 索引与 `LumaCarveData/datasets/{id}` 下 SHA 图片及同名 `.tags.txt` 文件的组合，重启后可继续使用。 |
 
 相关代码：[Vue 工作台](../../vue/docs/studio.md)、[工作流](docs/workflow.md)。
+
+| 高级参数 | 可按需展开的现有 Graph 字段；折叠不代表清零、重置或更改执行策略。 |
+| API 在线 | 经过健康检查的本地 FastAPI 服务可访问，**不等于**模型加载或 GPU 就绪。 |
+| GPU 未测量 | 后端尚未提供实测显卡可用性结果，不能写成不可用或可用。 |
