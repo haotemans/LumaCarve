@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import {
-  Aperture, Brush, Check, ChevronDown, CirclePlay, Clock3, Eraser, Image as ImageIcon,
+  Brush, Check, ChevronDown, CirclePlay, Clock3, Eraser, Image as ImageIcon,
   Images, Layers3, Maximize2, Plus, RotateCcw, Save, Settings2, Shuffle, Sparkles,
   Trash2, Upload, WandSparkles, X, Zap,
 } from 'lucide-vue-next';
@@ -11,6 +11,8 @@ import type { StudioIntent } from '../../features/image-studio/workflow';
 
 const studio = useStudioStore();
 const showNegative = ref(false);
+const showLoras = ref(studio.loras.length > 0);
+const showAdvanced = ref(false);
 const presetFile = ref<HTMLInputElement | null>(null);
 const feedback = ref('');
 interface LocalReference { id: string; url: string; name: string; width: number; height: number }
@@ -40,6 +42,14 @@ const previewRatio = computed(() =>
       : studio.aspect.replace(':', ' / ')
 );
 const busy = computed(() => !!studio.activeJobId || studio.jobState === 'submitting');
+const enabledLoras = computed(() => studio.loras.filter(item => item.enabled).length);
+const generationHint = computed(() =>
+  busy.value ? '任务在后台执行' :
+  studio.jobError ? '请检查运行错误' :
+  studio.selected ? '输出已保存' :
+  !studio.backendReady ? '推理环境未就绪' :
+  !studio.canSubmit ? '检查模型与提示词' : '可以开始生成'
+);
 const statusText = computed(() => {
   switch (studio.jobState) {
     case 'queued': return '排队中';
@@ -48,7 +58,7 @@ const statusText = computed(() => {
     case 'completed': return '生成完成';
     case 'failed': return '运行失败';
     case 'cancelled': return '已取消';
-    default: return '就绪';
+    default: return '空闲';
   }
 });
 const recent = computed(() => studio.history.filter(o => o.modelId === studio.modelId).slice(0, 10));
@@ -82,7 +92,7 @@ async function importPreset(event: Event) {
   const file = input.files?.[0]; input.value = '';
   if (!file) return;
   if (file.size > 2 * 1024 * 1024) { feedback.value = '预设超过 2 MB'; return; }
-  try { studio.setPreset(validateImport(JSON.parse(await file.text()))); feedback.value = '预设已导入'; }
+  try { studio.setPreset(validateImport(JSON.parse(await file.text()))); showLoras.value = studio.loras.length > 0; showNegative.value = !!studio.negativePrompt; feedback.value = '预设已导入'; }
   catch (error) { feedback.value = error instanceof Error ? error.message : '预设格式不正确'; }
 }
 function setIntent(intent: StudioIntent) {
@@ -157,6 +167,7 @@ function exportMask() {
     window.setTimeout(()=>URL.revokeObjectURL(url),1000);
   },'image/png');
 }
+function addLora() { studio.addLora(); showLoras.value = true; }
 function start() { feedback.value = ''; void studio.submit(); }
 </script>
 
@@ -176,9 +187,14 @@ function start() { feedback.value = ''; void studio.submit(); }
       </div>
       <div class="commandbar-right">
         <span v-if="feedback" class="action-feedback" role="status">{{feedback}}</span>
-        <button class="subtle-button" title="导入参数预设" @click="presetFile?.click()"><Upload :size="16"/><span>导入</span></button>
-        <button class="subtle-button" title="导出参数预设" @click="downloadPreset"><Save :size="16"/><span>保存预设</span></button>
-        <button class="icon-action" title="恢复默认参数" aria-label="恢复默认参数" @click="studio.restore()"><RotateCcw :size="16"/></button>
+        <details class="studio-toolbox">
+          <summary><Settings2 :size="16"/> 工具 <ChevronDown :size="14"/></summary>
+          <div class="studio-tool-menu">
+            <button type="button" @click="presetFile?.click()"><Upload :size="16"/> 导入预设</button>
+            <button type="button" @click="downloadPreset"><Save :size="16"/> 导出预设</button>
+            <button type="button" @click="studio.restore()"><RotateCcw :size="16"/> 重置参数</button>
+          </div>
+        </details>
         <input ref="presetFile" type="file" accept=".json,application/json" class="sr-only" @change="importPreset"/>
       </div>
     </div>
@@ -186,21 +202,25 @@ function start() { feedback.value = ''; void studio.submit(); }
     <div class="studio-grid">
       <aside class="studio-left">
         <section class="panel model-panel">
-          <div class="panel-caption"><span>01 / 基础模型</span><span class="mini-tag">MODEL</span></div>
-          <div class="model-avatar"><span class="model-avatar-mark"><Sparkles :size="23"/></span><span class="model-avatar-dot"/></div>
-          <label class="field-label" for="model-select">当前模型</label>
+          <div class="model-select-label">
+            <label class="field-label" for="model-select">基础模型</label>
+            <button type="button" class="tiny-text-button" title="重新扫描本地模型" @click="studio.syncLocalCheckpoints()"><RotateCcw :size="13"/> 刷新</button>
+          </div>
           <div class="native-select-wrap">
             <select id="model-select" class="native-select" :value="studio.modelId" @change="setModel">
               <option v-for="model in studioModels" :key="model.id" :value="model.id">{{model.label}}</option>
             </select>
             <ChevronDown :size="16"/>
           </div>
-          <div class="model-meta"><span class="tiny-dot" :class="{green:studio.backendReady}"/>{{studio.modelId!=='anima-base-1'?'模型适配未接入':studio.backendReady?'后端模型已就绪':studio.backendSnapshot?'模型已发现，依赖未就绪':'未安装完整 Anima 模型'}}</div>
-          <div v-if="studio.modelId==='anima-base-1'" class="under-panel-note">
-            <span v-if="studio.backendSnapshot" :title="studio.backendSnapshot">已验证目录：{{studio.backendSnapshot}}</span>
-            <RouterLink v-else to="/models" class="tiny-text-button">前往模型库安装 →</RouterLink>
-            <button type="button" class="tiny-text-button" title="重新扫描后端" @click="studio.syncLocalCheckpoints()"><RotateCcw :size="12"/>刷新模型</button>
+          <div class="model-meta" role="status">
+            <span class="tiny-dot" :class="{green:studio.backendReady && studio.modelId==='anima-base-1'}"/>
+            {{studio.modelId!=='anima-base-1'?'模型适配未接入':studio.backendReady?'模型文件就绪（GPU 未验证）':studio.backendSnapshot?'模型已发现 · 依赖未就绪':'尚未配置模型'}}
+            <RouterLink v-if="!studio.backendSnapshot && studio.modelId==='anima-base-1'" to="/models" class="tiny-text-button">模型管理</RouterLink>
           </div>
+          <details v-if="studio.modelId==='anima-base-1' && studio.backendSnapshot" class="model-path-detail">
+            <summary>模型路径 <ChevronDown :size="13"/></summary>
+            <code :title="studio.backendSnapshot">{{studio.backendSnapshot}}</code>
+          </details>
         </section>
 
         <section v-if="studio.workflow.intent!=='create'" class="panel reference-panel">
@@ -243,10 +263,18 @@ function start() { feedback.value = ''; void studio.submit(); }
             @input="studio.edit('prompt','negativePrompt',fieldInput($event))"/>
         </section>
 
-        <section class="panel lora-panel">
-          <div class="panel-heading"><div class="panel-title"><Layers3 :size="17"/><h2>LoRA 叠加</h2></div><span class="count-label">{{studio.loras.filter(item=>item.enabled).length}} 已启用</span></div>
-          <div v-if="!studio.loras.length" class="lora-empty"><div class="lora-icon"><Layers3 :size="21"/></div><span>尚未添加 LoRA</span></div>
-          <div v-for="item in studio.loras" :key="item.id" class="lora-entry">
+        <section class="panel lora-panel" :class="{expanded:showLoras}">
+          <div class="panel-heading lora-heading">
+            <button type="button" class="panel-toggle" :aria-expanded="showLoras" aria-controls="lora-settings" @click="showLoras=!showLoras">
+              <Layers3 :size="17"/><span>LoRA</span>
+              <small>{{studio.loras.length}} 项 · {{enabledLoras}} 启用</small>
+              <ChevronDown :size="15" :class="{turned:showLoras}"/>
+            </button>
+            <button type="button" class="icon-action" title="添加 LoRA" aria-label="添加 LoRA" @click="addLora"><Plus :size="16"/></button>
+          </div>
+          <div v-if="showLoras" id="lora-settings">
+            <div v-if="!studio.loras.length" class="lora-empty-compact">尚未添加 LoRA</div>
+            <div v-for="item in studio.loras" :key="item.id" class="lora-entry">
             <div class="lora-entry-top">
               <label class="check-label"><input type="checkbox" :checked="item.enabled" :aria-label="'启用 '+(item.name||'新 LoRA')" @change="updateLora(item.id,'enabled',($event.target as HTMLInputElement).checked)"/></label>
               <input :value="item.name" class="lora-name-input" placeholder="已安装 LoRA 名称" :aria-label="'LoRA 名称 '+item.id" maxlength="255" @input="updateLora(item.id,'name',fieldInput($event))"/>
@@ -254,8 +282,8 @@ function start() { feedback.value = ''; void studio.submit(); }
             </div>
             <div class="lora-weight"><input type="range" min="-2" max="2" step=".05" :value="item.strength" :aria-label="(item.name||'LoRA')+' 权重'" @input="updateLora(item.id,'strength',Number(fieldInput($event)))"/><span>{{item.strength.toFixed(2)}}</span></div>
           </div>
-          <button class="add-lora" @click="studio.addLora()"><Plus :size="16"/> 添加 LoRA</button>
-          <div class="under-panel-note">复用同一基础模型，不复制权重</div>
+            <button type="button" class="add-lora" @click="addLora"><Plus :size="16"/> 添加 LoRA</button>
+          </div>
         </section>
       </aside>
 
@@ -278,13 +306,10 @@ function start() { feedback.value = ''; void studio.submit(); }
                   @pointerup="maskUp" @pointercancel="maskUp" aria-label="蒙版涂抹区域"/>
               </template>
               <img v-else-if="studio.selected" :src="studio.selected.imageUrl" alt="本地模型实际生成的图像" class="generated-image"/>
-              <div v-else class="empty-illustration">
-                <div class="art-grid"/>
-                <div class="art-orbit orbit-one"/><div class="art-orbit orbit-two"/>
-                <div class="art-symbol"><Aperture :size="48" :stroke-width="1"/></div>
-                <span class="art-label">LUMA / CANVAS</span>
-                <strong>{{busy?'正在处理任务':'让灵感成形'}}</strong>
-                <span class="art-subtitle">{{busy?'画面完成后将在这里展示':'输入提示词，生成你的第一张作品'}}</span>
+              <div v-else class="empty-illustration" role="status">
+                <div class="canvas-empty-icon"><ImageIcon :size="27" :stroke-width="1.4"/></div>
+                <strong>{{busy?'正在生成':'暂无作品'}}</strong>
+                <span class="art-subtitle">{{busy?'任务完成后显示结果':'生成结果会显示在这里'}}</span>
               </div>
               <div class="canvas-watermark">LUMACARVE <span>•</span> {{activeReference && studio.workflow.intent!=='create'?'REFERENCE':studio.aspect}}</div>
             </div>
@@ -297,14 +322,14 @@ function start() { feedback.value = ''; void studio.submit(); }
                 <img :src="output.imageUrl" alt="实际生成结果缩略图" loading="lazy"/>
               </button>
             </div>
-            <div v-else class="filmstrip-empty"><Images :size="17"/><span>生成结果将在这里组成画廊</span></div>
+            <div v-else class="filmstrip-empty"><Images :size="17"/><span>暂无历史结果</span></div>
             <span class="filmstrip-count">{{recent.length ? recent.length+' 张作品' : '0 张作品'}}</span>
           </div>
         </section>
         <div class="generate-bar">
           <div class="generate-status">
             <div class="generate-state-icon"><Clock3 v-if="busy" :size="18"/><Check v-else :size="18"/></div>
-            <div><strong>{{statusText}}</strong><span>{{busy?'可以切换页面，后台任务继续执行':studio.selected?'图片已保存到后端工作区':'准备进行本地推理'}}</span></div>
+            <div><strong>{{statusText}}</strong><span>{{generationHint}}</span></div>
           </div>
           <button v-if="busy" class="secondary-action" @click="studio.cancel()"><X :size="16"/>取消</button>
           <button class="primary-action" :disabled="!studio.canSubmit" @click="start"><CirclePlay :size="19"/>{{busy?'生成中…':'开始生成'}}<span class="button-arrow">↗</span></button>
@@ -330,14 +355,19 @@ function start() { feedback.value = ''; void studio.submit(); }
             <input id="steps-range" class="range-input" type="range" min="1" max="80" step="1" :value="studio.steps" @input="setSteps"/>
             <div class="range-markers"><span>1</span><span>40</span><span>80</span></div>
           </div>
-          <div class="control-field">
-            <div class="control-label"><label for="cfg-range">引导强度</label><output>{{studio.guidance.toFixed(1)}}</output></div>
-            <input id="cfg-range" class="range-input" type="range" min="0" max="20" step=".5" :value="studio.guidance" @input="setGuidance"/>
-            <div class="range-markers"><span>0</span><span>10</span><span>20</span></div>
-          </div>
-          <div class="control-field seed-field">
-            <div class="control-label"><label for="seed-number">随机种子</label><button class="tiny-text-button" @click="randomSeed"><Shuffle :size="13"/> 随机</button></div>
-            <div class="seed-input-wrap"><input id="seed-number" type="number" min="0" max="4294967295" :value="studio.seed" @change="setSeed"/><button aria-label="随机生成种子" title="随机种子" @click="randomSeed"><Shuffle :size="15"/></button></div>
+          <button type="button" class="disclosure-button sampler-advanced-toggle" :aria-expanded="showAdvanced" aria-controls="sampler-advanced" @click="showAdvanced=!showAdvanced">
+            <span>高级参数 <small>CFG {{studio.guidance.toFixed(1)}} · Seed {{studio.seed}}</small></span>
+            <ChevronDown :size="15" :class="{turned:showAdvanced}"/>
+          </button>
+          <div v-if="showAdvanced" id="sampler-advanced" class="sampler-advanced">
+            <div class="control-field">
+              <div class="control-label"><label for="cfg-range">引导强度</label><output>{{studio.guidance.toFixed(1)}}</output></div>
+              <input id="cfg-range" class="range-input" type="range" min="0" max="20" step=".5" :value="studio.guidance" @input="setGuidance"/>
+            </div>
+            <div class="control-field seed-field">
+              <div class="control-label"><label for="seed-number">随机种子</label><button class="tiny-text-button" @click="randomSeed"><Shuffle :size="13"/> 随机</button></div>
+              <div class="seed-input-wrap"><input id="seed-number" type="number" min="0" max="4294967295" :value="studio.seed" @change="setSeed"/><button aria-label="随机生成种子" title="随机种子" @click="randomSeed"><Shuffle :size="15"/></button></div>
+            </div>
           </div>
         </section>
 
@@ -353,18 +383,19 @@ function start() { feedback.value = ''; void studio.submit(); }
 
         <section class="panel status-panel">
           <div class="panel-heading"><div class="panel-title"><Zap :size="17"/><h2>运行状态</h2></div><button class="tiny-text-button" title="手动刷新后端状态" @click="studio.refreshRuntime()"><RotateCcw :size="14"/>刷新</button></div>
-          <div class="status-overview"><span class="runtime-dot" :class="{ready:studio.runtime?.engine==='anima'}"/><div><strong>{{studio.runtime?.engine==='anima'?'Anima 本地资源就绪':studio.runtimeError?'后端未连接':'等待模型就绪'}}</strong><small>{{studio.runtimeError||'GPU 尚未检测；仅报告配置状态'}}</small></div></div>
-          <div class="status-metrics">
-            <div><span>GPU VRAM</span><strong>—</strong></div>
-            <div><span>CPU 卸载</span><strong>{{studio.runtime?.offload??'未知'}}</strong></div>
+          <div class="runtime-brief" role="status">
+            <div><span class="runtime-dot" :class="{ready:!!studio.runtime && !studio.runtimeError}"/> API <strong>{{studio.runtimeError?'连接失败':studio.runtime?'在线':'未检测'}}</strong></div>
+            <div>GPU <strong>{{!studio.runtime?'未检测':studio.runtime.configuredEngine==='disabled'?'未启用':studio.runtime.gpuMeasured?(studio.runtime.gpuAvailable?'可用':'不可用'):'未测量'}}</strong></div>
           </div>
-          <div class="runtime-engine-note">智能显存均衡 <span>尚未接入</span></div>
-          <details class="kernel-details">
-            <summary>实验加速配置 <ChevronDown :size="14"/></summary>
+          <div v-if="studio.runtimeError" class="inline-error" role="alert">{{studio.runtimeError}}</div>
+          <details class="runtime-extra">
+            <summary>运行详情 <ChevronDown :size="14"/></summary>
+            <div class="kernel-row"><span>CPU 卸载</span><span>{{studio.runtime?.offload??'未知'}}</span></div>
+            <div class="kernel-row"><span>智能显存规划</span><span>未接入</span></div>
             <div v-for="name in (['adaln','rope','residual','ffn'] as const)" :key="name" class="kernel-row">
               <span>{{name.toUpperCase()}}</span><span>{{studio.runtime?.kernels[name]==='experimental'?'实验配置':studio.runtime?.kernels[name]==='off'?'关闭':'未知'}}</span>
             </div>
-            <p>配置不代表已实测加速</p>
+            <p class="runtime-detail-note">实验配置不代表实测加速</p>
           </details>
         </section>
       </aside>
