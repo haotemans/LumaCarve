@@ -2,8 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import {
-  Aperture, ArrowUpRight, Boxes, ChevronRight, CircleHelp, Cpu, Database,
-  Images, Layers3, Menu, Settings2, Sparkles, WandSparkles, X, ListTodo, Zap,
+  Aperture, Boxes, ChevronRight, CircleHelp, Cpu, Database,
+  Images, Layers3, Menu, Settings2, WandSparkles, X, ListTodo,
 } from 'lucide-vue-next';
 import { useStudioStore } from './stores/studio';
 
@@ -83,7 +83,6 @@ function go(path: string) { void router.push(path); menuOpen.value = false; }
         </div>
         <div class="topbar-right">
           <span class="api-chip"><span class="status-pulse" :class="{ok:studio.runtime?.engine==='anima',connected:!!studio.runtime && studio.runtime.configuredEngine==='disabled'}"/>{{runtimeStatus}}</span>
-          <span class="gpu-chip"><Zap :size="14"/>GPU <strong>—</strong></span>
           <button class="icon-button help-button" aria-label="查看运行环境" title="运行环境" @click="go('/system')"><CircleHelp :size="19"/></button>
         </div>
       </header>
@@ -98,14 +97,10 @@ function go(path: string) { void router.push(path); menuOpen.value = false; }
             <div class="eyebrow"><span class="eyebrow-rule"/>{{section}}</div>
             <h1>{{title}}</h1>
           </div>
-          <div class="page-heading-right">
-            <span class="build-label"><Sparkles :size="14"/> PRIVATE WORKSPACE</span>
-            <ArrowUpRight :size="17" class="header-flourish"/>
-          </div>
         </div>
         <RouterView/>
       </main>
-      <footer class="main-footer"><span>© LumaCarve · 琢影</span><span>本地数据优先 · 没有后台 GPU 监控</span></footer>
+      <footer class="main-footer"><span>© LumaCarve · 琢影</span><RouterLink to="/system">运行详情</RouterLink></footer>
     </div>
   </div>
 </template>

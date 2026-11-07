@@ -76,3 +76,31 @@ test('React runtime and TSX sources are absent after full migration', () => {
   assert.equal(typeof manifest.dependencies.vue,'string');
   assert.equal(typeof manifest.dependencies.pinia,'string');
 });
+
+test('Studio progressive disclosure keeps all Graph editors and executable actions', () => {
+  const vue=readFileSync('src/vue/views/StudioView.vue','utf8');
+  for(const part of [
+    'aria-controls="lora-settings"', 'v-if="showLoras"', 'const enabledLoras = computed',
+    'function addLora()', 'aria-controls="sampler-advanced"', 'v-if="showAdvanced"',
+    'studio.edit(\'sampler\',\'aspect\'', 'studio.edit(\'prompt\',\'prompt\'',
+    'studio.submit()', 'studio.canSubmit', 'studio.cancel()', 'validateImport',
+  ]) assert.ok(vue.includes(part), 'Missing Studio behavior: '+part);
+  assert.ok(!vue.includes('art-orbit orbit-one'), 'Empty canvas should not render ornamental orbits');
+  assert.ok(vue.includes('studio.runtime.gpuMeasured'), 'GPU display must depend on actual telemetry');
+});
+
+test('Training view uses a real empty monitoring state, not invented metrics', () => {
+  const view=readFileSync('src/vue/views/TrainingView.vue','utf8');
+  assert.ok(view.includes('training-monitor-empty'));
+  assert.ok(view.includes('aria-controls="train-advanced"'));
+  assert.ok(view.includes('v-if="showAdvanced"'));
+  assert.ok(view.includes('disabled><Play'), 'Training must stay disabled until worker integration');
+  assert.ok(!view.includes('monitor-axes'), 'No fake trend charts before actual training');
+});
+
+test('Global chrome does not imply fake GPU readiness', () => {
+  const shell=readFileSync('src/vue/App.vue','utf8');
+  assert.ok(!shell.includes('GPU <strong>—</strong>'));
+  assert.ok(shell.includes('runtimeStatus'));
+  assert.ok(shell.includes('desktopStartupError'));
+});

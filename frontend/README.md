@@ -58,3 +58,7 @@ Windows 可使用仓库根目录的 `.\tools\start-dev.ps1` 一起启动 Vue 与
 Windows 仅发布无需安装的 ZIP（解压运行 `LumaCarve.exe`），Linux 仅发布 AppImage；不再发布 NSIS / DEB 安装包。Windows ZIP 必须保留内置 API 副程序和 `portable.flag`。解压目录旁建立 `LumaCarveData/` 保存用户数据。详见 [构建和发布规范](../docs/ci-build.md)。
 
 **当前发行状态：** Windows 便携预览版 v0.2.3；Linux AppImage v0.2.2。便携包仅包含轻量本地 API，不包括 GPU Worker、Anima 权重或 LoRA 训练。请参阅 [发行与功能状态](../docs/release-status.md)。
+
+## 图形化表达与界面层级（2026-11-07）
+
+生成页以模型、Prompt、画布、Steps、画幅和执行按钮为主；LoRA、CFG/Seed、路径、实验内核按需展开。训练页仅保留可编辑草稿与真实空监控，不绘制虚构 Loss/GPU 曲线。状态以短文字和可辨识的视觉符号传达；不为装饰增加图形、文字或 GPU 开销。细节见 [Studio](src/vue/docs/studio.md) 与 [工作区](src/vue/docs/workspaces.md)。

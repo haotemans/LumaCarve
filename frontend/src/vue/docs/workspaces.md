@@ -12,3 +12,7 @@
 页面使用 Vue Router 哈希路由，Tauri / 静态托管无需服务器配置 history fallback。真实 API 由 `../api.ts` 调用，后端仍是 Python/FastAPI + Rust 调度。响应式 CSS 统一在 `../styles.css`。
 
 验收：TypeScript `vue-tsc --noEmit` + Vite 构建、API contract 测试；真实浏览器界面需要后续在 Windows/Linux 及移动窗口检查。
+
+## LoRA 训练的轻量草稿 UI
+
+移除无实际测量支撑的图表占位与装饰横幅，用「数据集 → 参数 → 训练」紧凑进度条表达当前工作阶段。Epoch/Rank 常显，学习率/精度/优化器在高级参数中展开，折叠不修改其值。只显示「暂无训练数据」占位和不可用的训练按钮，不伪造 Loss、Learning Rate 或 Grad 曲线。GPU Worker 未实现，训练仍然禁止提交。
